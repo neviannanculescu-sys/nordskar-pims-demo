@@ -115,6 +115,32 @@ export class InventoryController {
   }
 
   // ---------------------------------------------------------------------------
+  // Alerts — low stock + expiring lots
+  // ---------------------------------------------------------------------------
+
+  @Get('alerts')
+  @Roles(...MEDICAL_ROLES)
+  getAlerts() {
+    return this.inventoryService.getAlerts();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Global movements feed
+  // ---------------------------------------------------------------------------
+
+  @Get('movements')
+  @Roles(...MEDICAL_ROLES)
+  getRecentMovements(
+    @Query('limit')  limit?:  string,
+    @Query('itemId') itemId?: string,
+  ) {
+    return this.inventoryService.getRecentMovements({
+      limit:  limit  ? parseInt(limit,  10) : undefined,
+      itemId: itemId ?? undefined,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
   // Billing candidates (billing prep — ADMIN + all medical roles)
   // ---------------------------------------------------------------------------
 

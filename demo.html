@@ -205,6 +205,10 @@
           <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           Nefacturate <span id="nav-unbilled-badge" style="display:none;background:#ea580c;color:white;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;">0</span>
         </a>
+        <a onclick="nav('stock')" class="sidebar-link" id="nav-stock">
+          <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7"/></svg>
+          Stocuri <span id="nav-stock-badge" style="display:none;background:#dc2626;color:white;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;">0</span>
+        </a>
         <a onclick="nav('daily')" class="sidebar-link" id="nav-daily">
           <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
           Raport Zilnic
@@ -507,6 +511,102 @@
             </table>
           </div>
         </div>
+
+        <!-- ==================== STOCURI ==================== -->
+        <div id="page-stock" class="page">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+            <div>
+              <h2 style="font-size:18px;font-weight:700;color:#2d1a0a;margin:0;">Stocuri</h2>
+              <div style="font-size:13px;color:#6b4a2e;margin-top:4px;">Inventar live din baza de date</div>
+            </div>
+            <button onclick="loadInventory()" class="btn-secondary" style="font-size:13px;">↺ Actualizează</button>
+          </div>
+
+          <!-- KPI cards -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:20px;">
+            <div class="card" style="padding:16px;">
+              <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Total produse</div>
+              <div id="st-total" style="font-size:22px;font-weight:700;color:#2d1a0a;">–</div>
+            </div>
+            <div class="card" style="padding:16px;">
+              <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Stoc zero</div>
+              <div id="st-out" style="font-size:22px;font-weight:700;color:#dc2626;">–</div>
+            </div>
+            <div class="card" style="padding:16px;">
+              <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Sub minim</div>
+              <div id="st-low" style="font-size:22px;font-weight:700;color:#ea580c;">–</div>
+            </div>
+            <div class="card" style="padding:16px;">
+              <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Expiră &lt;7 zile</div>
+              <div id="st-exp7" style="font-size:22px;font-weight:700;color:#d97706;">–</div>
+            </div>
+            <div class="card" style="padding:16px;">
+              <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Expiră &lt;30 zile</div>
+              <div id="st-exp30" style="font-size:22px;font-weight:700;color:#ca8a04;">–</div>
+            </div>
+          </div>
+
+          <!-- Alerte critice -->
+          <div id="st-alerts-section" style="display:none;margin-bottom:16px;">
+            <div id="st-alert-outofstock" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px 16px;margin-bottom:8px;font-size:13px;color:#991b1b;"></div>
+            <div id="st-alert-lowstock"   style="display:none;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px 16px;margin-bottom:8px;font-size:13px;color:#9a3412;"></div>
+            <div id="st-alert-expiry"     style="display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 16px;margin-bottom:8px;font-size:13px;color:#92400e;"></div>
+          </div>
+
+          <!-- Filtre + search -->
+          <div class="card" style="margin-bottom:16px;padding:14px 18px;">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+              <input id="st-search" type="text" placeholder="Caută după nume sau SKU..." oninput="filterInventoryTable()" style="flex:1;min-width:180px;padding:8px 12px;border:1px solid #e0d0c0;border-radius:8px;font-size:13px;">
+              <select id="st-cat-filter" onchange="filterInventoryTable()" style="padding:8px 12px;border:1px solid #e0d0c0;border-radius:8px;font-size:13px;background:white;">
+                <option value="">Toate categoriile</option>
+                <option value="medication">Medicamente</option>
+                <option value="consumable">Consumabile</option>
+                <option value="food">Hrană</option>
+                <option value="product_for_sale">Produse vânzare</option>
+                <option value="equipment">Echipamente</option>
+                <option value="other">Altele</option>
+              </select>
+              <select id="st-status-filter" onchange="filterInventoryTable()" style="padding:8px 12px;border:1px solid #e0d0c0;border-radius:8px;font-size:13px;background:white;">
+                <option value="">Toate statusurile</option>
+                <option value="ok">OK</option>
+                <option value="low">Sub minim</option>
+                <option value="out">Stoc zero</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Tabel produse -->
+          <div class="card" style="overflow:hidden;margin-bottom:16px;">
+            <table style="width:100%;border-collapse:collapse;" id="st-items-table-wrap">
+              <thead><tr>
+                <th style="text-align:left;padding:10px 12px;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;background:#fdf8f2;">Produs</th>
+                <th style="text-align:left;padding:10px 12px;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;background:#fdf8f2;">Categorie</th>
+                <th style="text-align:right;padding:10px 12px;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;background:#fdf8f2;">Stoc curent</th>
+                <th style="text-align:right;padding:10px 12px;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;background:#fdf8f2;">Minim</th>
+                <th style="text-align:right;padding:10px 12px;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;background:#fdf8f2;">Preț vânzare</th>
+                <th style="text-align:right;padding:10px 12px;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;background:#fdf8f2;">Cost mediu</th>
+                <th style="text-align:left;padding:10px 12px;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;background:#fdf8f2;">Locație</th>
+                <th style="text-align:center;padding:10px 12px;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;background:#fdf8f2;">Status</th>
+              </tr></thead>
+              <tbody id="st-items-body"><tr><td colspan="8" style="text-align:center;padding:32px;color:#9ca3af;">Se încarcă...</td></tr></tbody>
+            </table>
+          </div>
+
+          <!-- Loturi care expiră curând -->
+          <div class="card" style="margin-bottom:16px;">
+            <div style="font-size:13px;font-weight:600;color:#2d1a0a;margin-bottom:12px;">Loturi cu expirare apropiată (30 zile)</div>
+            <div id="st-expiry-body">–</div>
+          </div>
+
+          <!-- Mișcări recente -->
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              <div style="font-size:13px;font-weight:600;color:#2d1a0a;">Mișcări stoc recente</div>
+              <span style="font-size:12px;color:#9ca3af;">ultimele 30</span>
+            </div>
+            <div id="st-movements-body">–</div>
+          </div>
+        </div><!-- /page-stock -->
 
         <!-- ==================== RAPORT ZILNIC ==================== -->
         <div id="page-daily" class="page">
@@ -1553,6 +1653,7 @@ async function renderAll() {
     loadConsultationsFromApi(),
     loadInvoicesFromApi(),
     loadDashboardStats(),
+    loadInventory(),
   ]);
 }
 
@@ -3159,6 +3260,219 @@ function showToast(msg) {
 // Enter pe login
 document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 document.getElementById('loginEmail').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+// ==================== STOCURI ====================
+
+const CAT_LABELS = {
+  medication: 'Medicamente', consumable: 'Consumabile', food: 'Hrană',
+  product_for_sale: 'Vânzare', equipment: 'Echipamente', other: 'Altele',
+};
+const MOV_TYPE_LABELS = {
+  purchase_receipt: 'Recepție', consultation_use: 'Consum consultație',
+  hospitalization_use: 'Consum internare', direct_sale: 'Vânzare directă',
+  adjustment_positive: 'Ajustare +', adjustment_negative: 'Ajustare –',
+  return_to_supplier: 'Retur furnizor', expired_disposal: 'Casare expirat',
+  theft_loss: 'Pierdere/furt',
+};
+
+let _inventoryItems = [];   // cache pentru filtrare client-side
+
+async function loadInventory() {
+  const [itemsR, alertsR, movementsR] = await Promise.all([
+    apiRequest('GET', '/inventory/items?limit=200&isActive=true'),
+    apiRequest('GET', '/inventory/alerts'),
+    apiRequest('GET', '/inventory/movements?limit=30'),
+  ]);
+
+  if (itemsR.ok) {
+    const items = Array.isArray(itemsR.data) ? itemsR.data : (itemsR.data?.data ?? []);
+    _inventoryItems = items;
+    _setEl('st-total', items.length);
+    filterInventoryTable();
+  }
+
+  if (alertsR.ok) {
+    const a = alertsR.data;
+    const outCount  = a.outOfStock?.length  ?? 0;
+    const lowCount  = a.lowStock?.length    ?? 0;
+    const exp7Count = a.expiringIn7Days?.length  ?? 0;
+    const exp30Count= a.expiringIn30Days?.length ?? 0;
+
+    const outEl  = document.getElementById('st-out');
+    const lowEl  = document.getElementById('st-low');
+    const exp7El = document.getElementById('st-exp7');
+    const exp30El= document.getElementById('st-exp30');
+
+    _setEl('st-out',  outCount);
+    _setEl('st-low',  lowCount);
+    _setEl('st-exp7', exp7Count);
+    _setEl('st-exp30',exp30Count);
+
+    outEl.style.color  = outCount  > 0 ? '#dc2626' : '#16a34a';
+    lowEl.style.color  = lowCount  > 0 ? '#ea580c' : '#16a34a';
+    exp7El.style.color = exp7Count > 0 ? '#d97706' : '#16a34a';
+    exp30El.style.color= exp30Count> 0 ? '#ca8a04' : '#16a34a';
+
+    // Badge în sidebar
+    const totalAlerts = outCount + lowCount + exp7Count;
+    const badge = document.getElementById('nav-stock-badge');
+    if (badge) {
+      badge.style.display = totalAlerts > 0 ? 'inline' : 'none';
+      badge.textContent   = totalAlerts;
+    }
+
+    // Alert banners
+    const alertsSection = document.getElementById('st-alerts-section');
+    alertsSection.style.display = (outCount + lowCount + exp7Count) > 0 ? 'block' : 'none';
+
+    const outAlert = document.getElementById('st-alert-outofstock');
+    if (outCount > 0) {
+      outAlert.style.display = 'block';
+      outAlert.innerHTML = `⚠️ <strong>${outCount} produs${outCount===1?'':'e'} cu stoc ZERO</strong> — ${a.outOfStock.map(i=>`<em>${i.name}</em>`).join(', ')}`;
+    } else { outAlert.style.display = 'none'; }
+
+    const lowAlert = document.getElementById('st-alert-lowstock');
+    if (lowCount > 0) {
+      lowAlert.style.display = 'block';
+      lowAlert.innerHTML = `⚠️ <strong>${lowCount} produs${lowCount===1?'':'e'} sub nivelul minim</strong> — ${a.lowStock.map(i=>`<em>${i.name}</em> (${i.currentStock}/${i.minStockLevel} ${i.unit})`).join(', ')}`;
+    } else { lowAlert.style.display = 'none'; }
+
+    const expAlert = document.getElementById('st-alert-expiry');
+    if (exp7Count > 0) {
+      expAlert.style.display = 'block';
+      expAlert.innerHTML = `⏰ <strong>${exp7Count} lot${exp7Count===1?'':'uri'} expiră în 7 zile</strong> — ${a.expiringIn7Days.map(l=>`<em>${l.name}</em> (${l.expiryDate})`).join(', ')}`;
+    } else { expAlert.style.display = 'none'; }
+
+    // Tabel loturi expirare
+    renderExpiryTable([...(a.expiringIn7Days??[]), ...(a.expiringIn30Days??[])]);
+  }
+
+  if (movementsR.ok) {
+    renderMovements(Array.isArray(movementsR.data) ? movementsR.data : []);
+  }
+}
+
+function filterInventoryTable() {
+  const search    = (document.getElementById('st-search')?.value ?? '').toLowerCase();
+  const catFilter = document.getElementById('st-cat-filter')?.value  ?? '';
+  const statusFilter = document.getElementById('st-status-filter')?.value ?? '';
+
+  const filtered = _inventoryItems.filter(item => {
+    const stock = parseFloat(item.currentStock ?? item.current_stock ?? 0);
+    const min   = item.minStockLevel != null ? parseFloat(item.minStockLevel ?? item.min_stock_level) : null;
+    const status = stock <= 0 ? 'out' : (min !== null && stock < min ? 'low' : 'ok');
+
+    if (search && !item.name?.toLowerCase().includes(search) && !item.sku?.toLowerCase().includes(search)) return false;
+    if (catFilter && item.category !== catFilter) return false;
+    if (statusFilter && status !== statusFilter) return false;
+    return true;
+  });
+
+  renderInventoryTable(filtered);
+}
+
+function renderInventoryTable(items) {
+  const tbody = document.getElementById('st-items-body');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:#9ca3af;">Niciun produs găsit.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(item => {
+    const stock     = parseFloat(item.currentStock ?? item.current_stock ?? 0);
+    const min       = item.minStockLevel != null ? parseFloat(item.minStockLevel ?? item.min_stock_level) : null;
+    const salePrice = item.salePrice     != null ? parseFloat(item.salePrice    ?? item.sale_price)      : null;
+    const avgCost   = item.averageCost   != null ? parseFloat(item.averageCost  ?? item.average_cost)    : null;
+    const unit      = item.unitOfMeasure ?? item.unit_of_measure ?? '';
+
+    let statusBadge, stockColor;
+    if (stock <= 0) {
+      statusBadge = '<span style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600;">ZERO</span>';
+      stockColor  = '#dc2626';
+    } else if (min !== null && stock < min) {
+      statusBadge = '<span style="background:#fff7ed;color:#ea580c;border:1px solid #fed7aa;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600;">SUB MINIM</span>';
+      stockColor  = '#ea580c';
+    } else {
+      statusBadge = '<span style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600;">OK</span>';
+      stockColor  = '#16a34a';
+    }
+
+    return `<tr style="border-bottom:1px solid #f3ebe1;" class="table-row">
+      <td style="padding:10px 12px;">
+        <div style="font-size:13px;font-weight:600;color:#2d1a0a;">${item.name}</div>
+        <div style="font-size:11px;color:#9ca3af;font-family:monospace;">${item.sku}</div>
+      </td>
+      <td style="padding:10px 12px;font-size:12px;color:#6b7280;">${CAT_LABELS[item.category] ?? item.category ?? '–'}</td>
+      <td style="padding:10px 12px;text-align:right;font-weight:600;color:${stockColor};">${stock} ${unit}</td>
+      <td style="padding:10px 12px;text-align:right;font-size:13px;color:#6b7280;">${min !== null ? min + ' ' + unit : '–'}</td>
+      <td style="padding:10px 12px;text-align:right;font-size:13px;">${salePrice !== null ? _fmtRON(salePrice) + ' RON' : '–'}</td>
+      <td style="padding:10px 12px;text-align:right;font-size:13px;color:#6b7280;">${avgCost !== null ? _fmtRON(avgCost) + ' RON' : '–'}</td>
+      <td style="padding:10px 12px;font-size:12px;color:#6b7280;">${item.storageLocation ?? item.storage_location ?? '–'}</td>
+      <td style="padding:10px 12px;text-align:center;">${statusBadge}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderExpiryTable(lots) {
+  const div = document.getElementById('st-expiry-body');
+  if (!lots.length) {
+    div.innerHTML = '<div style="color:#16a34a;font-size:13px;">Niciun lot nu expiră în următoarele 30 zile. ✓</div>';
+    return;
+  }
+  div.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <thead><tr style="background:#fdf8f2;">
+      <th style="padding:8px;text-align:left;font-weight:600;color:#6b4a2e;">Produs</th>
+      <th style="padding:8px;text-align:left;font-weight:600;color:#6b4a2e;">Lot</th>
+      <th style="padding:8px;text-align:right;font-weight:600;color:#6b4a2e;">Cantitate</th>
+      <th style="padding:8px;text-align:right;font-weight:600;color:#6b4a2e;">Data expirare</th>
+      <th style="padding:8px;text-align:right;font-weight:600;color:#6b4a2e;">Zile rămase</th>
+    </tr></thead>
+    <tbody>${lots.map(l => {
+      const urgent = l.daysUntilExpiry <= 7;
+      return `<tr style="border-bottom:1px solid #f3ebe1;">
+        <td style="padding:8px;">${l.name} <span style="font-size:11px;color:#9ca3af;">${l.sku}</span></td>
+        <td style="padding:8px;font-family:monospace;font-size:12px;">${l.lotNumber || '–'}</td>
+        <td style="padding:8px;text-align:right;">${l.quantity}</td>
+        <td style="padding:8px;text-align:right;">${l.expiryDate}</td>
+        <td style="padding:8px;text-align:right;font-weight:600;color:${urgent?'#dc2626':'#d97706'};">${l.daysUntilExpiry}z</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+function renderMovements(movements) {
+  const div = document.getElementById('st-movements-body');
+  if (!movements.length) {
+    div.innerHTML = '<div style="color:#9ca3af;font-size:13px;">Nicio mișcare înregistrată.</div>';
+    return;
+  }
+  div.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <thead><tr style="background:#fdf8f2;">
+      <th style="padding:8px;text-align:left;font-weight:600;color:#6b4a2e;">Data</th>
+      <th style="padding:8px;text-align:left;font-weight:600;color:#6b4a2e;">Produs</th>
+      <th style="padding:8px;text-align:left;font-weight:600;color:#6b4a2e;">Tip</th>
+      <th style="padding:8px;text-align:right;font-weight:600;color:#6b4a2e;">Cantitate</th>
+      <th style="padding:8px;text-align:right;font-weight:600;color:#6b4a2e;">Stoc după</th>
+      <th style="padding:8px;text-align:left;font-weight:600;color:#6b4a2e;">Utilizator</th>
+    </tr></thead>
+    <tbody>${movements.map(m => {
+      const qty = m.quantity ?? 0;
+      const qtyColor = qty > 0 ? '#16a34a' : '#dc2626';
+      const qtySign  = qty > 0 ? '+' : '';
+      const dt = m.performedAt ? new Date(m.performedAt).toLocaleString('ro-RO', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '–';
+      return `<tr style="border-bottom:1px solid #f3ebe1;">
+        <td style="padding:8px;font-size:12px;color:#6b7280;">${dt}</td>
+        <td style="padding:8px;">
+          <div style="font-weight:500;">${m.itemName ?? '–'}</div>
+          <div style="font-size:11px;color:#9ca3af;font-family:monospace;">${m.itemSku ?? ''}</div>
+        </td>
+        <td style="padding:8px;font-size:12px;">${MOV_TYPE_LABELS[m.movementType] ?? m.movementType ?? '–'}</td>
+        <td style="padding:8px;text-align:right;font-weight:600;color:${qtyColor};">${qtySign}${qty}</td>
+        <td style="padding:8px;text-align:right;color:#6b7280;">${m.stockAfter ?? '–'}</td>
+        <td style="padding:8px;font-size:12px;color:#6b7280;">${m.performedByName ?? '–'}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
 
 // ==================== RAPORT ZILNIC ====================
 

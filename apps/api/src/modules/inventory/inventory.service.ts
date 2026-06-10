@@ -213,6 +213,186 @@ export class InventoryService {
   }
 
   // ---------------------------------------------------------------------------
+  // Alerts — low stock + expiring lots
+  // ---------------------------------------------------------------------------
+
+  async getAlerts() {
+    const todayStr  = new Date().toISOString().slice(0, 10);
+    const in7Days   = new Date(); in7Days.setDate(in7Days.getDate() + 7);
+    const in30Days  = new Date(); in30Days.setDate(in30Days.getDate() + 30);
+    const in7Str    = in7Days.toISOString().slice(0, 10);
+    const in30Str   = in30Days.toISOString().slice(0, 10);
+
+    const [outOfStock, lowStock, expiring7, expiring30] = await Promise.all([
+      // Out of stock
+      this.db.execute<{
+        id: string; sku: string; name: string; current_stock: string;
+        min_stock_level: string | null; unit_of_measure: string;
+      }>(sql`
+        SELECT id, sku, name, current_stock::TEXT, min_stock_level::TEXT, unit_of_measure
+        FROM inventory_items
+        WHERE deleted_at IS NULL AND is_active = TRUE
+          AND current_stock::NUMERIC <= 0
+        ORDER BY name
+      `),
+
+      // Low stock (below minimum, but still > 0)
+      this.db.execute<{
+        id: string; sku: string; name: string; current_stock: string;
+        min_stock_level: string; unit_of_measure: string; deficit: string;
+      }>(sql`
+        SELECT
+          id, sku, name,
+          current_stock::TEXT,
+          min_stock_level::TEXT,
+          unit_of_measure,
+          (min_stock_level::NUMERIC - current_stock::NUMERIC)::TEXT AS deficit
+        FROM inventory_items
+        WHERE deleted_at IS NULL AND is_active = TRUE
+          AND min_stock_level IS NOT NULL
+          AND current_stock::NUMERIC > 0
+          AND current_stock::NUMERIC < min_stock_level::NUMERIC
+        ORDER BY (current_stock::NUMERIC / min_stock_level::NUMERIC) ASC
+      `),
+
+      // Expiring in 7 days
+      this.db.execute<{
+        inventory_item_id: string; sku: string; name: string;
+        lot_number: string | null; expiry_date: string; quantity: string;
+        days_until_expiry: string;
+      }>(sql`
+        SELECT
+          ii.id AS inventory_item_id,
+          ii.sku, ii.name,
+          sm.lot_number,
+          sm.expiry_date::TEXT,
+          SUM(sm.quantity)::TEXT AS quantity,
+          EXTRACT(DAY FROM sm.expiry_date::TIMESTAMP - NOW())::TEXT AS days_until_expiry
+        FROM stock_movements sm
+        JOIN inventory_items ii ON ii.id = sm.inventory_item_id
+        WHERE sm.expiry_date IS NOT NULL
+          AND sm.expiry_date BETWEEN ${todayStr} AND ${in7Str}
+          AND sm.movement_type = 'purchase_receipt'
+          AND ii.deleted_at IS NULL
+        GROUP BY ii.id, ii.sku, ii.name, sm.lot_number, sm.expiry_date
+        HAVING SUM(sm.quantity) > 0
+        ORDER BY sm.expiry_date ASC
+      `),
+
+      // Expiring in 30 days (excluding the 7-day window already above)
+      this.db.execute<{
+        inventory_item_id: string; sku: string; name: string;
+        lot_number: string | null; expiry_date: string; quantity: string;
+        days_until_expiry: string;
+      }>(sql`
+        SELECT
+          ii.id AS inventory_item_id,
+          ii.sku, ii.name,
+          sm.lot_number,
+          sm.expiry_date::TEXT,
+          SUM(sm.quantity)::TEXT AS quantity,
+          EXTRACT(DAY FROM sm.expiry_date::TIMESTAMP - NOW())::TEXT AS days_until_expiry
+        FROM stock_movements sm
+        JOIN inventory_items ii ON ii.id = sm.inventory_item_id
+        WHERE sm.expiry_date IS NOT NULL
+          AND sm.expiry_date > ${in7Str}
+          AND sm.expiry_date <= ${in30Str}
+          AND sm.movement_type = 'purchase_receipt'
+          AND ii.deleted_at IS NULL
+        GROUP BY ii.id, ii.sku, ii.name, sm.lot_number, sm.expiry_date
+        HAVING SUM(sm.quantity) > 0
+        ORDER BY sm.expiry_date ASC
+      `),
+    ]);
+
+    const mapItem = (r: { id: string; sku: string; name: string; current_stock: string; min_stock_level?: string | null; unit_of_measure: string; deficit?: string }) => ({
+      id:            r.id,
+      sku:           r.sku,
+      name:          r.name,
+      currentStock:  parseFloat(r.current_stock  ?? '0'),
+      minStockLevel: r.min_stock_level ? parseFloat(r.min_stock_level) : null,
+      unit:          r.unit_of_measure,
+      deficit:       r.deficit ? parseFloat(r.deficit) : null,
+    });
+
+    const mapLot = (r: { inventory_item_id: string; sku: string; name: string; lot_number: string | null; expiry_date: string; quantity: string; days_until_expiry: string }) => ({
+      inventoryItemId: r.inventory_item_id,
+      sku:             r.sku,
+      name:            r.name,
+      lotNumber:       r.lot_number ?? null,
+      expiryDate:      r.expiry_date,
+      quantity:        parseFloat(r.quantity ?? '0'),
+      daysUntilExpiry: Math.max(0, parseInt(r.days_until_expiry ?? '0', 10)),
+    });
+
+    return {
+      outOfStock:      outOfStock.rows.map(mapItem),
+      lowStock:        lowStock.rows.map(mapItem),
+      expiringIn7Days: expiring7.rows.map(mapLot),
+      expiringIn30Days: expiring30.rows.map(mapLot),
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Recent movements — global feed across all items
+  // ---------------------------------------------------------------------------
+
+  async getRecentMovements(params: { limit?: number; itemId?: string }) {
+    const limit  = params.limit ?? 50;
+    const filter = params.itemId
+      ? sql`AND sm.inventory_item_id = ${params.itemId}`
+      : sql``;
+
+    const rows = await this.db.execute<{
+      id: string; inventory_item_id: string; item_name: string; item_sku: string;
+      movement_type: string; quantity: string; unit_cost: string | null;
+      lot_number: string | null; expiry_date: string | null;
+      stock_before: string | null; stock_after: string | null;
+      notes: string | null; performed_by_name: string; performed_at: string;
+    }>(sql`
+      SELECT
+        sm.id,
+        sm.inventory_item_id,
+        ii.name  AS item_name,
+        ii.sku   AS item_sku,
+        sm.movement_type,
+        sm.quantity::TEXT,
+        sm.unit_cost::TEXT,
+        sm.lot_number,
+        sm.expiry_date::TEXT,
+        sm.stock_before::TEXT,
+        sm.stock_after::TEXT,
+        sm.notes,
+        COALESCE(u.first_name || ' ' || u.last_name, 'System') AS performed_by_name,
+        sm.performed_at::TEXT
+      FROM stock_movements sm
+      JOIN inventory_items ii ON ii.id = sm.inventory_item_id
+      LEFT JOIN users u ON u.id = sm.performed_by
+      WHERE ii.deleted_at IS NULL
+        ${filter}
+      ORDER BY sm.performed_at DESC
+      LIMIT ${limit}
+    `);
+
+    return rows.rows.map((r) => ({
+      id:              r.id,
+      inventoryItemId: r.inventory_item_id,
+      itemName:        r.item_name,
+      itemSku:         r.item_sku,
+      movementType:    r.movement_type,
+      quantity:        parseFloat(r.quantity   ?? '0'),
+      unitCost:        r.unit_cost ? parseFloat(r.unit_cost) : null,
+      lotNumber:       r.lot_number  ?? null,
+      expiryDate:      r.expiry_date ?? null,
+      stockBefore:     r.stock_before ? parseFloat(r.stock_before) : null,
+      stockAfter:      r.stock_after  ? parseFloat(r.stock_after)  : null,
+      notes:           r.notes ?? null,
+      performedByName: r.performed_by_name,
+      performedAt:     r.performed_at,
+    }));
+  }
+
+  // ---------------------------------------------------------------------------
   // Billing candidates — read from DB view
   // ---------------------------------------------------------------------------
 

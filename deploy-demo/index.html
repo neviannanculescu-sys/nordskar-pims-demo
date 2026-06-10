@@ -244,7 +244,7 @@
                 </div>
               </div>
               <div style="font-size:32px;font-weight:700;color:#2d1a0a;">12</div>
-              <div style="font-size:12px;color:#16a34a;margin-top:4px;">→' 3 față de ieri</div>
+              <div style="font-size:12px;color:#16a34a;margin-top:4px;">→  3 față de ieri</div>
             </div>
             <div class="stat-card">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
@@ -281,7 +281,7 @@
           <div class="card" style="margin-bottom:20px;">
             <div style="padding:16px 24px;border-bottom:1px solid #f3e8d8;display:flex;align-items:center;justify-content:space-between;">
               <h3 style="font-size:15px;font-weight:600;margin:0;">Programări astăzi</h3>
-              <button onclick="nav('appointments')" style="background:none;border:none;color:#e2ab3b;font-size:13px;cursor:pointer;">Vezi toate →'</button>
+              <button onclick="nav('appointments')" style="background:none;border:none;color:#e2ab3b;font-size:13px;cursor:pointer;">Vezi toate →</button>
             </div>
             <div>
               <div style="padding:14px 24px;display:flex;align-items:center;gap:16px;border-bottom:1px solid #f8fafc;">
@@ -322,7 +322,7 @@
                 <div>
                   <div style="font-size:14px;font-weight:600;color:#2d1a0a;">3 consultații nefacturate</div>
                   <div style="font-size:13px;color:#6b4a2e;margin-top:4px;">Servicii prestate dar neemise pe factură. Valoare estimată: 450 RON.</div>
-                  <button onclick="nav('consultations')" style="background:none;border:none;color:#ea580c;font-size:13px;cursor:pointer;padding:0;margin-top:8px;">Verifică →'</button>
+                  <button onclick="nav('consultations')" style="background:none;border:none;color:#ea580c;font-size:13px;cursor:pointer;padding:0;margin-top:8px;">Verifică →</button>
                 </div>
               </div>
             </div>
@@ -332,7 +332,7 @@
                 <div>
                   <div style="font-size:14px;font-weight:600;color:#2d1a0a;">1 factură în procesare SPV</div>
                   <div style="font-size:13px;color:#6b4a2e;margin-top:4px;">Factura VET-2026-000045 este în așteptare la ANAF e-Factura.</div>
-                  <button onclick="nav('invoices')" style="background:none;border:none;color:#e2ab3b;font-size:13px;cursor:pointer;padding:0;margin-top:8px;">Urmărește →'</button>
+                  <button onclick="nav('invoices')" style="background:none;border:none;color:#e2ab3b;font-size:13px;cursor:pointer;padding:0;margin-top:8px;">Urmărește →</button>
                 </div>
               </div>
             </div>
@@ -1726,7 +1726,7 @@ function emiteFactura() {
 
   let number;
   if (_editingDraftNumber) {
-    // Promovează ciorna existentă →' issued (suprascrie în loc)
+    // Promovează ciorna existentă →  issued (suprascrie în loc)
     number = _editingDraftNumber;
     const idx = invoices.findIndex(i => i.number === number);
     if (idx !== -1) {
@@ -2482,11 +2482,11 @@ function _renderClientDetails(c) {
             <span style="color:#6b4a2e;font-size:13px;"> · ${a.species}, ${a.breed}</span>
           </div>
           <span style="font-size:12px;color:#b89275;">${a.age} · ${a.weight}</span>
-          <span style="font-size:12px;color:#e2ab3b;text-decoration:underline;">Fișă medicală →'</span>
+          <span style="font-size:12px;color:#e2ab3b;text-decoration:underline;">Fișă medicală →</span>
         </div>`).join('')
     : `<div style="font-size:13px;color:#b89275;font-style:italic;padding:10px 0;">
          Niciun animal înregistrat.
-         <button onclick="addAnimalForCurrentClient()" style="background:none;border:none;color:#e2ab3b;cursor:pointer;font-size:13px;text-decoration:underline;padding:0;margin-left:6px;">Adaugă primul animal →'</button>
+         <button onclick="addAnimalForCurrentClient()" style="background:none;border:none;color:#e2ab3b;cursor:pointer;font-size:13px;text-decoration:underline;padding:0;margin-left:6px;">Adaugă primul animal →</button>
        </div>`;
 
   const clientConsults = consultations.filter(x => x.owner === clientName);

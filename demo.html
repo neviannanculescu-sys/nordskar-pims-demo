@@ -137,6 +137,18 @@
     .rec-type-badge { display:inline-block; border-radius:4px; padding:2px 7px; font-size:10px; background:#f3ebe0; color:#6b4228; }
     .rec-drawer { position:fixed; right:0; top:0; bottom:0; width:420px; background:white; box-shadow:-4px 0 20px rgba(0,0,0,.15); z-index:200; display:none; overflow-y:auto; }
     .rec-drawer.open { display:block; }
+    .an-summary-card { background:white; border-radius:10px; padding:16px 20px; border:1px solid #e8d5b7; }
+    .an-severity-badge { display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; }
+    .an-sev-critical { background:#fef2f2; color:#dc2626; }
+    .an-sev-warning  { background:#fffbeb; color:#d97706; }
+    .an-sev-info     { background:#eff6ff; color:#3b82f6; }
+    .an-status-badge { display:inline-block; padding:2px 7px; border-radius:10px; font-size:11px; font-weight:600; }
+    .an-st-open     { background:#fef2f2; color:#dc2626; }
+    .an-st-ack      { background:#fffbeb; color:#d97706; }
+    .an-st-resolved { background:#f0fdf4; color:#16a34a; }
+    .an-drawer { position:fixed; right:0; top:0; bottom:0; width:460px; background:white; box-shadow:-4px 0 20px rgba(0,0,0,.15); z-index:200; display:none; overflow-y:auto; }
+    .an-drawer.open { display:block; }
+    .an-module-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; background:#f5eadb; color:#6b4228; }
     .rec-summary-card { background:white; border:1px solid #e8d5b7; border-radius:10px; padding:16px 20px; }
     .rec-summary-val { font-size:22px; font-weight:700; color:#2d1a0a; }
     .rec-summary-label { font-size:11px; font-weight:600; color:#9b7653; text-transform:uppercase; letter-spacing:.5px; }
@@ -267,6 +279,10 @@
         <a onclick="nav('reconciliation')" class="sidebar-link" id="nav-reconciliation">
           <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
           Reconciliere <span id="nav-reconciliation-badge" style="display:none;background:#dc2626;color:white;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;">0</span>
+        </a>
+        <a onclick="nav('anomalies')" class="sidebar-link" id="nav-anomalies">
+          <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+          Anomalii <span id="nav-anomalies-badge" style="display:none;background:#dc2626;color:white;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;">0</span>
         </a>
       </nav>
 
@@ -1284,6 +1300,105 @@
         </div>
         <div id="rec-drawer-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:199;" onclick="closeRecDrawer()"></div>
 
+        <!-- ================================================================ -->
+        <!-- PAGE: ANOMALII G-05                                               -->
+        <!-- ================================================================ -->
+        <div id="page-anomalies" class="page">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+            <div>
+              <h2 style="font-size:20px;font-weight:700;color:#2d1a0a;margin:0;">Anomalii Operaționale G-05</h2>
+              <div style="font-size:12px;color:#b89275;margin-top:3px;">Detectare automată · <span id="an-last-run">—</span></div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <select id="an-filter-severity" onchange="loadAnomalies()" style="padding:6px 10px;border:1px solid #e8d5b7;border-radius:6px;font-size:13px;background:white;">
+                <option value="">Toate severitățile</option>
+                <option value="critical">Critical</option>
+                <option value="warning">Warning</option>
+                <option value="info">Info</option>
+              </select>
+              <select id="an-filter-status" onchange="loadAnomalies()" style="padding:6px 10px;border:1px solid #e8d5b7;border-radius:6px;font-size:13px;background:white;">
+                <option value="">Toate statusurile</option>
+                <option value="open">Open</option>
+                <option value="ack">Acknowledged</option>
+                <option value="resolved">Resolved</option>
+              </select>
+              <select id="an-filter-module" onchange="loadAnomalies()" style="padding:6px 10px;border:1px solid #e8d5b7;border-radius:6px;font-size:13px;background:white;">
+                <option value="">Toate modulele</option>
+                <option value="financial">Financial</option>
+                <option value="operational">Operational</option>
+                <option value="inventory">Inventory</option>
+                <option value="spv">SPV</option>
+                <option value="audit">Audit</option>
+              </select>
+              <button onclick="runAnomalyDetection()" id="an-run-btn" style="padding:7px 14px;background:#7c3a1e;color:white;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">
+                ▶ Rulează detecție
+              </button>
+            </div>
+          </div>
+
+          <!-- Summary cards -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px;" id="an-summary-cards">
+            <div class="an-summary-card" id="an-card-total">
+              <div style="font-size:11px;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Total</div>
+              <div style="font-size:28px;font-weight:700;color:#2d1a0a;" id="an-total">—</div>
+            </div>
+            <div class="an-summary-card" id="an-card-critical">
+              <div style="font-size:11px;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Critical</div>
+              <div style="font-size:28px;font-weight:700;color:#dc2626;" id="an-critical-count">—</div>
+            </div>
+            <div class="an-summary-card" id="an-card-warning">
+              <div style="font-size:11px;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Warning</div>
+              <div style="font-size:28px;font-weight:700;color:#d97706;" id="an-warning-count">—</div>
+            </div>
+            <div class="an-summary-card" id="an-card-open">
+              <div style="font-size:11px;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Deschise</div>
+              <div style="font-size:28px;font-weight:700;color:#2d1a0a;" id="an-open-count">—</div>
+            </div>
+            <div class="an-summary-card" id="an-card-ack">
+              <div style="font-size:11px;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Acknowledged</div>
+              <div style="font-size:28px;font-weight:700;color:#d97706;" id="an-ack-count">—</div>
+            </div>
+          </div>
+
+          <!-- Loading / Error / Empty states -->
+          <div id="an-loading" style="display:none;padding:40px;text-align:center;color:#b89275;">
+            <div style="font-size:14px;">Se încarcă anomaliile...</div>
+          </div>
+          <div id="an-error" style="display:none;padding:20px;background:#fef2f2;border-radius:8px;color:#dc2626;font-size:13px;margin-bottom:16px;"></div>
+          <div id="an-empty" style="display:none;padding:40px;text-align:center;background:white;border-radius:10px;border:1px solid #e8d5b7;">
+            <div style="font-size:32px;margin-bottom:10px;">✅</div>
+            <div style="font-size:14px;font-weight:600;color:#2d1a0a;margin-bottom:4px;">Nicio anomalie detectată</div>
+            <div style="font-size:12px;color:#b89275;">Sistemul funcționează în parametri normali pentru filtrele selectate.</div>
+          </div>
+
+          <!-- Table -->
+          <div id="an-table-wrap" style="background:white;border-radius:10px;border:1px solid #e8d5b7;overflow:hidden;">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+              <thead>
+                <tr style="background:#fdf8f2;border-bottom:1px solid #e8d5b7;">
+                  <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;">Severitate</th>
+                  <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;">Tip</th>
+                  <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;">Titlu</th>
+                  <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;">Modul</th>
+                  <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;">Status</th>
+                  <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;">Detectat</th>
+                  <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;">Acțiuni</th>
+                </tr>
+              </thead>
+              <tbody id="an-tbody"></tbody>
+            </table>
+          </div>
+        </div><!-- /page-anomalies -->
+
+        <!-- Anomaly detail drawer -->
+        <div id="an-drawer" class="an-drawer">
+          <div style="padding:16px 20px;background:#fef9f0;border-bottom:1px solid #e8d5b7;display:flex;align-items:center;justify-content:space-between;">
+            <div style="font-size:14px;font-weight:700;color:#2d1a0a;">Detalii anomalie</div>
+            <button onclick="closeAnDrawer()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#6b7280;">✕</button>
+          </div>
+          <div id="an-drawer-content" style="padding:20px;"></div>
+        </div>
+        <div id="an-drawer-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:199;" onclick="closeAnDrawer()"></div>
 
       </div><!-- /pages -->
     </main>
@@ -2228,6 +2343,7 @@ function nav(page) {
     spv:           ['SPV / e-Factura', 'Statusuri transmisii ANAF'],
     kpi:             ['Management KPI',    'Indicatori cheie de performanță'],
     reconciliation:  ['Reconciliere',      'Servicii prestate vs. facturate — G-15'],
+    anomalies:       ['Anomalii G-05',     'Detectare automată anomalii operaționale'],
   };
   document.getElementById('pageTitle').textContent = titles[page]?.[0] ?? page;
   if (titles[page]?.[1]) {
@@ -2240,6 +2356,7 @@ function nav(page) {
   if (page === 'spv')           loadSpvDashboard();
   if (page === 'kpi')           loadKpiDashboard();
   if (page === 'reconciliation') loadReconciliation();
+  if (page === 'anomalies')     loadAnomalies();
 }
 
 async function renderAll() {
@@ -5401,6 +5518,200 @@ function closeRecDrawer() {
 // Enter pe login
 document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 document.getElementById('loginEmail').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+// ==================== ANOMALII G-05 ====================
+
+let _anLoaded = false;
+
+async function loadAnomalies() {
+  const severity     = document.getElementById('an-filter-severity').value;
+  const status       = document.getElementById('an-filter-status').value;
+  const sourceModule = document.getElementById('an-filter-module').value;
+
+  _show('an-loading');
+  _hide('an-error'); _hide('an-empty'); _hide('an-table-wrap');
+
+  try {
+    // Load summary + list in parallel
+    const [summaryRes, listRes] = await Promise.all([
+      _api('/reports/anomalies/summary'),
+      _api(`/reports/anomalies?${new URLSearchParams(Object.fromEntries(
+        Object.entries({ severity, status, sourceModule, limit: '100' }).filter(([,v]) => v)
+      ))}`),
+    ]);
+
+    const s = await summaryRes.json();
+    const l = await listRes.json();
+
+    _setEl('an-total',        s.total ?? 0);
+    _setEl('an-critical-count', s.bySeverity?.critical ?? 0);
+    _setEl('an-warning-count',  s.bySeverity?.warning  ?? 0);
+    _setEl('an-open-count',     s.byStatus?.open        ?? 0);
+    _setEl('an-ack-count',      s.byStatus?.ack         ?? 0);
+
+    // Badge
+    const openCritical = (s.bySeverity?.critical ?? 0);
+    const badge = document.getElementById('nav-anomalies-badge');
+    if (openCritical > 0) { badge.textContent = openCritical; badge.style.display = 'inline'; }
+    else badge.style.display = 'none';
+
+    document.getElementById('an-last-run').textContent = 'Actualizat: ' + new Date().toLocaleTimeString('ro-RO');
+
+    _hide('an-loading');
+    const rows = l.data ?? [];
+    if (!rows.length) { _show('an-empty'); return; }
+
+    _show('an-table-wrap');
+    _renderAnTable(rows);
+    _anLoaded = true;
+  } catch (e) {
+    _hide('an-loading');
+    _show('an-error');
+    document.getElementById('an-error').textContent = 'Eroare la încărcarea anomaliilor: ' + e.message;
+  }
+}
+
+function _renderAnTable(rows) {
+  const tbody = document.getElementById('an-tbody');
+  tbody.innerHTML = rows.map(r => {
+    const sevClass = r.severity === 'critical' ? 'an-sev-critical' : r.severity === 'warning' ? 'an-sev-warning' : 'an-sev-info';
+    const stClass  = r.status  === 'open'     ? 'an-st-open'      : r.status  === 'ack'     ? 'an-st-ack'      : 'an-st-resolved';
+    const dt = r.detectedAt ? new Date(r.detectedAt).toLocaleString('ro-RO', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
+    const modLabel = { financial:'Financial', operational:'Operational', inventory:'Inventory', spv:'SPV', audit:'Audit' }[r.sourceModule] ?? r.sourceModule;
+
+    let actions = '';
+    if (r.status === 'open')  actions += `<button onclick="anAck('${r.id}')" style="padding:3px 9px;font-size:11px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:5px;cursor:pointer;margin-right:4px;">Ack</button>`;
+    if (r.status !== 'resolved') actions += `<button onclick="anResolve('${r.id}')" style="padding:3px 9px;font-size:11px;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:5px;cursor:pointer;">Rezolvat</button>`;
+    actions += `<button onclick="openAnDrawer('${r.id}')" style="padding:3px 9px;font-size:11px;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:5px;cursor:pointer;margin-left:4px;">↗</button>`;
+
+    return `<tr style="border-bottom:1px solid #f3e8d8;cursor:pointer;" onmouseenter="this.style.background='#fdf8f2'" onmouseleave="this.style.background=''">
+      <td style="padding:10px 14px;"><span class="an-severity-badge ${sevClass}">${r.severity.toUpperCase()}</span></td>
+      <td style="padding:10px 14px;color:#6b4228;font-size:11px;">${_anTypeLabel(r.type)}</td>
+      <td style="padding:10px 14px;font-weight:500;color:#2d1a0a;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${r.title}">${r.title}</td>
+      <td style="padding:10px 14px;"><span class="an-module-badge">${modLabel}</span></td>
+      <td style="padding:10px 14px;"><span class="an-status-badge ${stClass}">${r.status.toUpperCase()}</span></td>
+      <td style="padding:10px 14px;font-size:12px;color:#6b7280;">${dt}</td>
+      <td style="padding:10px 14px;">${actions}</td>
+    </tr>`;
+  }).join('');
+}
+
+function _anTypeLabel(type) {
+  const map = {
+    revenue_drop:         'Venit scăzut',
+    time_to_bill_avg:     'TTB mediu',
+    time_to_bill_over24h: 'TTB >24h',
+    spv_error_rate:       'Erori SPV',
+    noshow_spike:         'No-show',
+    unbilled_services:    'Nefacturate',
+    stock_expiry_7d:      'Expiry ≤7z',
+    stock_expiry_30d:     'Expiry ≤30z',
+    stock_below_min:      'Stoc minim',
+    audit_large_discounts:'Discounturi',
+    audit_credit_notes:   'Stornări',
+    audit_off_hours_activity: 'Ore non-std',
+  };
+  return map[type] ?? type;
+}
+
+async function runAnomalyDetection() {
+  const btn = document.getElementById('an-run-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Rulează...';
+  try {
+    const res = await _api('/reports/anomalies/run', { method: 'POST' });
+    const data = await res.json();
+    btn.textContent = `✓ ${data.inserted ?? 0} noi, ${data.updated ?? 0} actualizate`;
+    setTimeout(() => { btn.textContent = '▶ Rulează detecție'; btn.disabled = false; }, 3000);
+    await loadAnomalies();
+  } catch (e) {
+    btn.textContent = '✕ Eroare';
+    btn.disabled = false;
+  }
+}
+
+async function anAck(id) {
+  try {
+    await _api(`/reports/anomalies/${id}/ack`, { method: 'POST' });
+    await loadAnomalies();
+  } catch(e) { alert('Eroare ack: ' + e.message); }
+}
+
+async function anResolve(id) {
+  try {
+    await _api(`/reports/anomalies/${id}/resolve`, { method: 'POST' });
+    await loadAnomalies();
+  } catch(e) { alert('Eroare resolve: ' + e.message); }
+}
+
+async function openAnDrawer(id) {
+  document.getElementById('an-drawer').classList.add('open');
+  document.getElementById('an-drawer-overlay').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+
+  const content = document.getElementById('an-drawer-content');
+  content.innerHTML = '<div style="color:#b89275;font-size:13px;">Se încarcă...</div>';
+
+  try {
+    const res = await _api(`/reports/anomalies/${id}`);
+    const a = await res.json();
+    const sevClass = a.severity === 'critical' ? 'an-sev-critical' : a.severity === 'warning' ? 'an-sev-warning' : 'an-sev-info';
+    const stClass  = a.status  === 'open'     ? 'an-st-open'      : a.status  === 'ack'     ? 'an-st-ack'      : 'an-st-resolved';
+
+    let metricHtml = '';
+    if (a.metricValue !== null && a.metricValue !== undefined) {
+      metricHtml = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;">
+        <div style="padding:10px;background:#fdf8f2;border-radius:8px;">
+          <div style="font-size:10px;color:#b89275;margin-bottom:3px;">VALOARE</div>
+          <div style="font-size:16px;font-weight:700;color:#2d1a0a;">${parseFloat(a.metricValue).toFixed(2)}</div>
+        </div>
+        ${a.baselineValue !== null ? `<div style="padding:10px;background:#fdf8f2;border-radius:8px;">
+          <div style="font-size:10px;color:#b89275;margin-bottom:3px;">BASELINE</div>
+          <div style="font-size:16px;font-weight:700;color:#2d1a0a;">${parseFloat(a.baselineValue).toFixed(2)}</div>
+        </div>` : ''}
+        ${a.threshold !== null ? `<div style="padding:10px;background:#fdf8f2;border-radius:8px;">
+          <div style="font-size:10px;color:#b89275;margin-bottom:3px;">PRAG</div>
+          <div style="font-size:16px;font-weight:700;color:#2d1a0a;">${parseFloat(a.threshold).toFixed(2)}</div>
+        </div>` : ''}
+      </div>`;
+    }
+
+    let workflowBtns = '';
+    if (a.status === 'open')  workflowBtns += `<button onclick="anAck('${a.id}');closeAnDrawer();" style="padding:8px 16px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;margin-right:8px;">Acknowledge</button>`;
+    if (a.status !== 'resolved') workflowBtns += `<button onclick="anResolve('${a.id}');closeAnDrawer();" style="padding:8px 16px;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;">Marchează rezolvat</button>`;
+
+    content.innerHTML = `
+      <div style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;">
+        <span class="an-severity-badge ${sevClass}" style="font-size:12px;">${a.severity.toUpperCase()}</span>
+        <span class="an-status-badge ${stClass}" style="font-size:12px;">${a.status.toUpperCase()}</span>
+        <span class="an-module-badge" style="font-size:12px;">${a.sourceModule}</span>
+      </div>
+      <div style="font-size:16px;font-weight:700;color:#2d1a0a;margin-bottom:8px;line-height:1.4;">${a.title}</div>
+      <div style="font-size:13px;color:#4b5563;line-height:1.6;margin-bottom:16px;">${a.description}</div>
+      ${metricHtml}
+      ${a.suggestedAction ? `<div style="padding:12px;background:#fffbeb;border-radius:8px;border-left:3px solid #f59e0b;margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:700;color:#92400e;margin-bottom:4px;">ACȚIUNE SUGERATĂ</div>
+        <div style="font-size:13px;color:#78350f;">${a.suggestedAction}</div>
+      </div>` : ''}
+      <div style="font-size:11px;color:#b89275;margin-bottom:16px;">
+        Detectat: ${a.detectedAt ? new Date(a.detectedAt).toLocaleString('ro-RO') : '—'}
+        &nbsp;·&nbsp; Fingerprint: <code style="font-size:10px;background:#f3f4f6;padding:1px 4px;border-radius:3px;">${a.fingerprint}</code>
+      </div>
+      ${workflowBtns ? `<div style="padding-top:12px;border-top:1px solid #e8d5b7;">${workflowBtns}</div>` : ''}
+    `;
+  } catch (e) {
+    content.innerHTML = `<div style="color:#dc2626;font-size:13px;">Eroare: ${e.message}</div>`;
+  }
+}
+
+function closeAnDrawer() {
+  document.getElementById('an-drawer').classList.remove('open');
+  document.getElementById('an-drawer-overlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function _show(id) { const el = document.getElementById(id); if (el) el.style.display = ''; }
+function _hide(id) { const el = document.getElementById(id); if (el) el.style.display = 'none'; }
 </script>
 </body>
 </html>

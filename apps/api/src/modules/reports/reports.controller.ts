@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Query, Param, Res, UseGuards,
-  BadRequestException, ParseUUIDPipe,
+  BadRequestException, ParseUUIDPipe, Request,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { JwtAuthGuard }  from '../auth/guards/jwt-auth.guard';
@@ -12,6 +12,7 @@ import { ReportsService }          from './reports.service';
 import { AccountingExportService } from './accounting-export.service';
 import { KpiService }              from './kpi.service';
 import { ReconciliationService, UnbilledType } from './reconciliation.service';
+import { AnomalyService }          from './anomaly.service';
 import { ReportFiltersDto, AccountingExportDto, ExportFormat } from './dto/report-filters.dto';
 
 // Rapoartele financiare sunt vizibile și pentru ACCOUNTANT
@@ -26,6 +27,7 @@ export class ReportsController {
     private readonly accountingExportService: AccountingExportService,
     private readonly kpiService:              KpiService,
     private readonly reconciliationService:   ReconciliationService,
+    private readonly anomalyService:          AnomalyService,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -361,5 +363,63 @@ export class ReportsController {
     @Query('to')   to?:   string,
   ) {
     return this.reconciliationService.getSummary(from, to);
+  }
+
+  // -------------------------------------------------------------------------
+  // G-05 Anomaly Detection — Sesiunea 9
+  // -------------------------------------------------------------------------
+
+  @Get('anomalies')
+  @Roles(...REPORT_ROLES)
+  listAnomalies(
+    @Query('status')       status?:       string,
+    @Query('severity')     severity?:     string,
+    @Query('sourceModule') sourceModule?: string,
+    @Query('limit')        limit?:        string,
+    @Query('offset')       offset?:       string,
+  ) {
+    return this.anomalyService.list({
+      status,
+      severity,
+      sourceModule,
+      limit:  limit  ? parseInt(limit,  10) : undefined,
+      offset: offset ? parseInt(offset, 10) : undefined,
+    });
+  }
+
+  @Get('anomalies/summary')
+  @Roles(...REPORT_ROLES)
+  anomalySummary() {
+    return this.anomalyService.getSummary();
+  }
+
+  @Get('anomalies/:id')
+  @Roles(...REPORT_ROLES)
+  anomalyDetail(@Param('id', ParseUUIDPipe) id: string) {
+    return this.anomalyService.getById(id);
+  }
+
+  @Post('anomalies/run')
+  @Roles(...REPORT_ROLES)
+  runAnomalyDetection() {
+    return this.anomalyService.runDetection();
+  }
+
+  @Post('anomalies/:id/ack')
+  @Roles(...REPORT_ROLES)
+  ackAnomaly(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Request() req: any,
+  ) {
+    return this.anomalyService.ack(id, req.user.id);
+  }
+
+  @Post('anomalies/:id/resolve')
+  @Roles(...REPORT_ROLES)
+  resolveAnomaly(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Request() req: any,
+  ) {
+    return this.anomalyService.resolve(id, req.user.id);
   }
 }

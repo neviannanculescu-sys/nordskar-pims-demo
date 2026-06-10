@@ -128,6 +128,18 @@
     .kpi-wow-item { background:#fffbf5; border:1px solid #e8d5b7; border-radius:8px; padding:10px 14px; }
     .kpi-wow-label { font-size:11px; color:#9b7653; font-weight:600; }
     .kpi-wow-val { font-size:15px; font-weight:700; color:#2d1a0a; margin-top:2px; }
+
+    /* Reconciliere */
+    .sev-badge { display:inline-block; border-radius:4px; padding:2px 8px; font-size:11px; font-weight:600; }
+    .sev-critical { background:#fef2f2; color:#dc2626; }
+    .sev-warning  { background:#fffbeb; color:#d97706; }
+    .sev-info     { background:#f0fdf4; color:#16a34a; }
+    .rec-type-badge { display:inline-block; border-radius:4px; padding:2px 7px; font-size:10px; background:#f3ebe0; color:#6b4228; }
+    .rec-drawer { position:fixed; right:0; top:0; bottom:0; width:420px; background:white; box-shadow:-4px 0 20px rgba(0,0,0,.15); z-index:200; display:none; overflow-y:auto; }
+    .rec-drawer.open { display:block; }
+    .rec-summary-card { background:white; border:1px solid #e8d5b7; border-radius:10px; padding:16px 20px; }
+    .rec-summary-val { font-size:22px; font-weight:700; color:#2d1a0a; }
+    .rec-summary-label { font-size:11px; font-weight:600; color:#9b7653; text-transform:uppercase; letter-spacing:.5px; }
   </style>
 </head>
 <body style="margin:0;">
@@ -251,6 +263,10 @@
         <a onclick="nav('kpi')" class="sidebar-link" id="nav-kpi">
           <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
           Management
+        </a>
+        <a onclick="nav('reconciliation')" class="sidebar-link" id="nav-reconciliation">
+          <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+          Reconciliere <span id="nav-reconciliation-badge" style="display:none;background:#dc2626;color:white;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;">0</span>
         </a>
       </nav>
 
@@ -1143,6 +1159,130 @@
 
           </div>
         </div><!-- /page-kpi -->
+
+        <!-- =================== PAGE: RECONCILIERE =================== -->
+        <div id="page-reconciliation" class="page">
+          <div style="max-width:1200px;margin:0 auto;">
+
+            <!-- Header + filtre rapide -->
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:24px;">
+              <div>
+                <h2 style="font-size:18px;font-weight:700;color:#2d1a0a;margin:0;">Reconciliere Servicii</h2>
+                <p style="font-size:13px;color:#9b7653;margin:4px 0 0;">Detectare automată prestații nefacturate — G-15</p>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <button onclick="recSetPeriod('today')" id="rec-btn-today" class="btn-kpi-period active">Azi</button>
+                <button onclick="recSetPeriod('7d')"    id="rec-btn-7d"    class="btn-kpi-period">7 zile</button>
+                <button onclick="recSetPeriod('30d')"   id="rec-btn-30d"   class="btn-kpi-period">30 zile</button>
+                <select id="rec-filter-type" onchange="loadReconciliation()" style="padding:5px 10px;border:1px solid #d6b896;border-radius:6px;font-size:12px;color:#6b4228;">
+                  <option value="">Toate tipurile</option>
+                  <option value="consultation">Consultații</option>
+                  <option value="procedure">Proceduri</option>
+                  <option value="treatment_line">Tratamente</option>
+                  <option value="stock_movement">Consum stoc</option>
+                </select>
+                <select id="rec-filter-sev" onchange="loadReconciliation()" style="padding:5px 10px;border:1px solid #d6b896;border-radius:6px;font-size:12px;color:#6b4228;">
+                  <option value="">Toate severitățile</option>
+                  <option value="critical">Critical</option>
+                  <option value="warning">Warning</option>
+                  <option value="info">Info</option>
+                </select>
+                <button onclick="loadReconciliation()" style="padding:6px 14px;border:none;border-radius:6px;background:#92400e;color:white;font-size:13px;cursor:pointer;">↻ Reîncarcă</button>
+              </div>
+            </div>
+
+            <!-- Summary cards -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:24px;" id="rec-summary-cards">
+              <div class="rec-summary-card" style="border-left:4px solid #dc2626;">
+                <div class="rec-summary-label">Total cazuri</div>
+                <div class="rec-summary-val" id="rec-total-cases">—</div>
+              </div>
+              <div class="rec-summary-card" style="border-left:4px solid #d97706;">
+                <div class="rec-summary-label">Valoare totală est.</div>
+                <div class="rec-summary-val" id="rec-total-value">—</div>
+                <div style="font-size:11px;color:#9b7653;margin-top:2px;">RON cu TVA</div>
+              </div>
+              <div class="rec-summary-card" style="border-left:4px solid #dc2626;">
+                <div class="rec-summary-label">🔴 Critical</div>
+                <div class="rec-summary-val" id="rec-sev-critical">—</div>
+              </div>
+              <div class="rec-summary-card" style="border-left:4px solid #d97706;">
+                <div class="rec-summary-label">🟡 Warning</div>
+                <div class="rec-summary-val" id="rec-sev-warning">—</div>
+              </div>
+              <div class="rec-summary-card" style="border-left:4px solid #16a34a;">
+                <div class="rec-summary-label">🟢 Info</div>
+                <div class="rec-summary-val" id="rec-sev-info">—</div>
+              </div>
+            </div>
+
+            <!-- Category breakdown -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;" id="rec-cat-grid">
+              <div style="background:#fffbf5;border:1px solid #e8d5b7;border-radius:8px;padding:12px 14px;">
+                <div style="font-size:11px;font-weight:600;color:#9b7653;">Consultații fără factură</div>
+                <div style="font-size:16px;font-weight:700;margin-top:2px;" id="rec-cat-consultation">—</div>
+              </div>
+              <div style="background:#fffbf5;border:1px solid #e8d5b7;border-radius:8px;padding:12px 14px;">
+                <div style="font-size:11px;font-weight:600;color:#9b7653;">Proceduri nefacturate</div>
+                <div style="font-size:16px;font-weight:700;margin-top:2px;" id="rec-cat-procedure">—</div>
+              </div>
+              <div style="background:#fffbf5;border:1px solid #e8d5b7;border-radius:8px;padding:12px 14px;">
+                <div style="font-size:11px;font-weight:600;color:#9b7653;">Tratamente nefacturate</div>
+                <div style="font-size:16px;font-weight:700;margin-top:2px;" id="rec-cat-treatment">—</div>
+              </div>
+              <div style="background:#fffbf5;border:1px solid #e8d5b7;border-radius:8px;padding:12px 14px;">
+                <div style="font-size:11px;font-weight:600;color:#9b7653;">Consumuri neacoperite</div>
+                <div style="font-size:16px;font-weight:700;margin-top:2px;" id="rec-cat-stock">—</div>
+              </div>
+            </div>
+
+            <!-- Main table -->
+            <div style="background:white;border:1px solid #e8d5b7;border-radius:10px;overflow:hidden;margin-bottom:24px;">
+              <div style="padding:14px 16px;background:#fef9f0;border-bottom:1px solid #e8d5b7;font-size:13px;font-weight:600;color:#92400e;">
+                Cazuri detectate <span id="rec-count-label" style="font-weight:400;color:#9b7653;"></span>
+              </div>
+              <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                  <thead>
+                    <tr style="background:#f9f5ee;">
+                      <th style="padding:9px 12px;text-align:left;color:#6b4228;white-space:nowrap;">Data</th>
+                      <th style="padding:9px 12px;text-align:left;color:#6b4228;">Tip</th>
+                      <th style="padding:9px 12px;text-align:left;color:#6b4228;">Descriere</th>
+                      <th style="padding:9px 12px;text-align:left;color:#6b4228;">Client</th>
+                      <th style="padding:9px 12px;text-align:left;color:#6b4228;">Pacient</th>
+                      <th style="padding:9px 12px;text-align:left;color:#6b4228;">Medic</th>
+                      <th style="padding:9px 12px;text-align:right;color:#6b4228;white-space:nowrap;">Val. est.</th>
+                      <th style="padding:9px 12px;text-align:center;color:#6b4228;">Sev.</th>
+                      <th style="padding:9px 12px;text-align:center;color:#6b4228;"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="rec-table-body">
+                    <tr><td colspan="9" style="padding:24px;text-align:center;color:#9ca3af;">Se încarcă...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Error state -->
+            <div id="rec-error-state" style="display:none;text-align:center;padding:32px;color:#dc2626;background:#fff5f5;border:1px solid #fecaca;border-radius:10px;">
+              <div style="font-size:24px;margin-bottom:8px;">⚠️</div>
+              <div id="rec-error-msg">Eroare la încărcarea datelor de reconciliere.</div>
+            </div>
+
+          </div>
+        </div><!-- /page-reconciliation -->
+
+        <!-- Drawer detalii reconciliere -->
+        <div id="rec-drawer" class="rec-drawer">
+          <div style="padding:16px 20px;background:#fef9f0;border-bottom:1px solid #e8d5b7;display:flex;align-items:center;justify-content:space-between;">
+            <div style="font-size:14px;font-weight:700;color:#2d1a0a;">Detalii caz reconciliere</div>
+            <button onclick="closeRecDrawer()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#6b7280;">✕</button>
+          </div>
+          <div id="rec-drawer-content" style="padding:20px;">
+            <div style="text-align:center;padding:32px;color:#b89275;">Se încarcă...</div>
+          </div>
+        </div>
+        <div id="rec-drawer-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:199;" onclick="closeRecDrawer()"></div>
 
 
       </div><!-- /pages -->
@@ -2086,7 +2226,8 @@ function nav(page) {
     consultations: ['Consultații',     '6 consultații recente'],
     invoices:      ['Facturi',         'Jurnal vânzări'],
     spv:           ['SPV / e-Factura', 'Statusuri transmisii ANAF'],
-    kpi:           ['Management KPI',  'Indicatori cheie de performanță'],
+    kpi:             ['Management KPI',    'Indicatori cheie de performanță'],
+    reconciliation:  ['Reconciliere',      'Servicii prestate vs. facturate — G-15'],
   };
   document.getElementById('pageTitle').textContent = titles[page]?.[0] ?? page;
   if (titles[page]?.[1]) {
@@ -2096,8 +2237,9 @@ function nav(page) {
   }
 
   // Încarcă date la prima navigare pe paginile cu date live
-  if (page === 'spv') loadSpvDashboard();
-  if (page === 'kpi') loadKpiDashboard();
+  if (page === 'spv')           loadSpvDashboard();
+  if (page === 'kpi')           loadKpiDashboard();
+  if (page === 'reconciliation') loadReconciliation();
 }
 
 async function renderAll() {
@@ -5059,6 +5201,201 @@ async function loadKpiDashboard() {
     document.getElementById('kpi-error-state').style.display = 'block';
     document.getElementById('kpi-error-msg').textContent = 'Eroare la încărcarea KPI-urilor: ' + (err.message ?? err);
   }
+}
+
+// Enter pe login
+document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('loginEmail').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+// ==================== RECONCILIERE (G-15) ====================
+
+let _recPeriod = 'today';
+
+const REC_TYPE_LABELS = {
+  consultation:   'Consultație',
+  procedure:      'Procedură',
+  treatment_line: 'Tratament',
+  stock_movement: 'Consum stoc',
+};
+
+function recSetPeriod(p) {
+  _recPeriod = p;
+  document.querySelectorAll('[id^="rec-btn-"]').forEach(b => b.classList.remove('active'));
+  document.getElementById('rec-btn-' + p).classList.add('active');
+  loadReconciliation();
+}
+
+function _recDateRange() {
+  const today = new Date().toISOString().slice(0, 10);
+  if (_recPeriod === 'today') return { from: today, to: today };
+  const d = new Date();
+  if (_recPeriod === '7d')  d.setDate(d.getDate() - 6);
+  if (_recPeriod === '30d') d.setDate(d.getDate() - 29);
+  return { from: d.toISOString().slice(0, 10), to: today };
+}
+
+async function loadReconciliation() {
+  const { from, to }  = _recDateRange();
+  const typeFilter    = document.getElementById('rec-filter-type').value;
+  const sevFilter     = document.getElementById('rec-filter-sev').value;
+  document.getElementById('rec-error-state').style.display = 'none';
+
+  // Summary
+  const sumRes = await apiRequest('GET', `/reports/reconciliation/unbilled/summary?from=${from}&to=${to}`);
+  if (sumRes.ok) {
+    const s = sumRes.data;
+    _setEl('rec-total-cases',  s.totalCases.toString());
+    _setEl('rec-total-value',  _fmtRON(s.totalValue) + ' RON');
+    _setEl('rec-sev-critical', s.bySeverity.critical.toString());
+    _setEl('rec-sev-warning',  s.bySeverity.warning.toString());
+    _setEl('rec-sev-info',     s.bySeverity.info.toString());
+    _setEl('rec-cat-consultation', `${s.byType.consultation.count} caz · ${_fmtRON(s.byType.consultation.value)} RON`);
+    _setEl('rec-cat-procedure',    `${s.byType.procedure.count} caz · ${_fmtRON(s.byType.procedure.value)} RON`);
+    _setEl('rec-cat-treatment',    `${s.byType.treatment_line.count} caz · ${_fmtRON(s.byType.treatment_line.value)} RON`);
+    _setEl('rec-cat-stock',        `${s.byType.stock_movement.count} caz · ${_fmtRON(s.byType.stock_movement.value)} RON`);
+
+    // Badge in nav
+    const badge = document.getElementById('nav-reconciliation-badge');
+    if (s.bySeverity.critical > 0) {
+      badge.textContent = s.bySeverity.critical;
+      badge.style.display = 'inline';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  // Items list
+  let url = `/reports/reconciliation/unbilled?from=${from}&to=${to}`;
+  if (typeFilter)  url += `&type=${typeFilter}`;
+  if (sevFilter)   url += `&minSeverity=${sevFilter}`;
+
+  const res = await apiRequest('GET', url);
+  const body = document.getElementById('rec-table-body');
+
+  if (!res.ok) {
+    document.getElementById('rec-error-state').style.display = 'block';
+    document.getElementById('rec-error-msg').textContent = 'Eroare la încărcare: ' + (res.error ?? '');
+    body.innerHTML = '';
+    return;
+  }
+
+  const items = res.data ?? [];
+  document.getElementById('rec-count-label').textContent = `(${items.length} cazuri)`;
+
+  if (!items.length) {
+    body.innerHTML = '<tr><td colspan="9" style="padding:24px;text-align:center;color:#9ca3af;">Nicio prestație suspect nefacturată în perioada selectată</td></tr>';
+    return;
+  }
+
+  body.innerHTML = items.map(item => {
+    const sevBadge = `<span class="sev-badge sev-${item.severity}">${item.severity.toUpperCase()}</span>`;
+    const typeBadge = `<span class="rec-type-badge">${REC_TYPE_LABELS[item.type] ?? item.type}</span>`;
+    const daysLabel = item.daysSince > 0 ? `<span style="font-size:10px;color:${item.daysSince > 7 ? '#dc2626' : '#9b7653'};"> (${item.daysSince}z)</span>` : '';
+    const detailId = item.consultationId ?? item.sourceEntityId;
+    return `<tr style="border-top:1px solid #f3ebe0;" id="rec-row-${item.id.replace(/:/g,'-')}">
+      <td style="padding:8px 12px;white-space:nowrap;">${item.consultationDate ?? '—'}${daysLabel}</td>
+      <td style="padding:8px 12px;">${typeBadge}</td>
+      <td style="padding:8px 12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${item.description}">${item.description}</td>
+      <td style="padding:8px 12px;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item.ownerName ?? '—'}</td>
+      <td style="padding:8px 12px;">${item.petName ?? '—'}</td>
+      <td style="padding:8px 12px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item.veterinarianName ?? '—'}</td>
+      <td style="padding:8px 12px;text-align:right;font-weight:600;color:#92400e;">${_fmtRON(item.estimatedValue)} RON</td>
+      <td style="padding:8px 12px;text-align:center;">${sevBadge}</td>
+      <td style="padding:8px 12px;text-align:center;">
+        <button onclick="openRecDetail('${detailId}', ${JSON.stringify(item).replace(/"/g,'&quot;')})"
+          style="padding:3px 10px;border:1px solid #d6b896;border-radius:5px;background:white;font-size:11px;cursor:pointer;color:#6b4228;">
+          Detalii
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function openRecDetail(consultationId, item) {
+  document.getElementById('rec-drawer').classList.add('open');
+  document.getElementById('rec-drawer-overlay').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+
+  const content = document.getElementById('rec-drawer-content');
+  const sevBadge = `<span class="sev-badge sev-${item.severity}">${item.severity.toUpperCase()}</span>`;
+  const typeBadge = `<span class="rec-type-badge">${REC_TYPE_LABELS[item.type] ?? item.type}</span>`;
+
+  content.innerHTML = `
+    <div style="margin-bottom:16px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">${typeBadge} ${sevBadge}</div>
+      <div style="font-size:15px;font-weight:700;color:#2d1a0a;margin-bottom:4px;">${item.description}</div>
+      <div style="font-size:12px;color:#9b7653;">${item.consultationDate ?? item.detectedAt?.slice(0,10) ?? '—'}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;margin-bottom:16px;">
+      <div><span style="color:#9b7653;">Client:</span> ${item.ownerName ?? '—'}</div>
+      <div><span style="color:#9b7653;">Pacient:</span> ${item.petName ?? '—'}</div>
+      <div><span style="color:#9b7653;">Medic:</span> ${item.veterinarianName ?? '—'}</div>
+      <div><span style="color:#9b7653;">Zile vechime:</span> <strong style="color:${item.daysSince > 7 ? '#dc2626' : '#2d1a0a'}">${item.daysSince}</strong></div>
+      <div><span style="color:#9b7653;">Cantitate:</span> ${item.quantity != null ? item.quantity + ' ' + (item.unit ?? '') : '—'}</div>
+      <div><span style="color:#9b7653;">Valoare est.:</span> <strong style="color:#92400e;">${_fmtRON(item.estimatedValue)} RON</strong></div>
+    </div>
+    <div style="background:#fffbf5;border:1px solid #e8d5b7;border-radius:8px;padding:12px;margin-bottom:16px;">
+      <div style="font-size:11px;font-weight:600;color:#92400e;margin-bottom:4px;">ℹ️ Notă sistem</div>
+      <div style="font-size:12px;color:#4b5563;">${item.notes}</div>
+    </div>
+    <div id="rec-detail-dynamic" style="font-size:12px;color:#9ca3af;">Se încarcă detalii suplimentare...</div>
+  `;
+
+  // Try to load full detail if consultation ID available
+  if (consultationId && item.type !== 'stock_movement') {
+    const r = await apiRequest('GET', `/reports/reconciliation/unbilled/${consultationId}`);
+    if (r.ok && r.data) {
+      const det = r.data;
+      let html = '';
+
+      if (det.existingInvoiceLines?.length) {
+        html += `<div style="margin-bottom:12px;">
+          <div style="font-size:12px;font-weight:600;color:#2d1a0a;margin-bottom:6px;">✅ Linii de factură existente pentru această consultație</div>
+          ${det.existingInvoiceLines.map(il => `
+            <div style="display:flex;justify-content:space-between;padding:5px 8px;background:#f0fdf4;border-radius:5px;margin-bottom:3px;">
+              <span>${il.invoiceNumber} — ${il.description}</span>
+              <span style="font-weight:600;">${_fmtRON(il.amount)} RON</span>
+            </div>`).join('')}
+        </div>`;
+      } else {
+        html += `<div style="padding:8px;background:#fef2f2;border-radius:5px;color:#dc2626;font-size:12px;margin-bottom:12px;">
+          ❌ Nicio linie de factură găsită pentru această consultație
+        </div>`;
+      }
+
+      if (det.relatedItems?.length) {
+        html += `<div style="margin-bottom:12px;">
+          <div style="font-size:12px;font-weight:600;color:#2d1a0a;margin-bottom:6px;">🔗 Alte prestații nefacturate din aceeași consultație</div>
+          ${det.relatedItems.map(ri => `
+            <div style="display:flex;justify-content:space-between;padding:5px 8px;background:#fffbeb;border-radius:5px;margin-bottom:3px;">
+              <span>${REC_TYPE_LABELS[ri.type] ?? ri.type}: ${ri.description}</span>
+              <span style="font-weight:600;">${_fmtRON(ri.estimatedValue)} RON</span>
+            </div>`).join('')}
+        </div>`;
+      }
+
+      html += `<div style="background:#fffbf5;border:1px solid #e8d5b7;border-radius:8px;padding:10px;font-size:12px;color:#6b4228;">
+        <strong>Ce trebuie verificat manual:</strong><br>
+        • Verificați dacă există o factură emisă separat care acoperă aceste servicii<br>
+        • Dacă serviciile nu au fost facturate, deschideți modulul Facturi și creați o nouă factură<br>
+        • Sistemul NU modifică automat nicio factură — acțiunea aparține utilizatorului
+      </div>`;
+
+      document.getElementById('rec-detail-dynamic').innerHTML = html;
+    } else {
+      document.getElementById('rec-detail-dynamic').innerHTML =
+        '<div style="color:#9ca3af;">Nu s-au putut încărca detaliile suplimentare.</div>';
+    }
+  } else {
+    document.getElementById('rec-detail-dynamic').innerHTML =
+      '<div style="color:#9b7653;font-size:12px;">Detaliile suplimentare nu sunt disponibile pentru tipul: ' + (REC_TYPE_LABELS[item.type] ?? item.type) + '</div>';
+  }
+}
+
+function closeRecDrawer() {
+  document.getElementById('rec-drawer').classList.remove('open');
+  document.getElementById('rec-drawer-overlay').style.display = 'none';
+  document.body.style.overflow = '';
 }
 
 // Enter pe login

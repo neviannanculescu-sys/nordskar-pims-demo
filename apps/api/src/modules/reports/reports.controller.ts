@@ -1,6 +1,6 @@
 import {
-  Controller, Get, Query, Res, UseGuards,
-  BadRequestException,
+  Controller, Get, Post, Query, Param, Res, UseGuards,
+  BadRequestException, ParseUUIDPipe,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { JwtAuthGuard }  from '../auth/guards/jwt-auth.guard';
@@ -11,6 +11,7 @@ import { MEDICAL_ROLES } from '../../common/constants/roles.constants';
 import { ReportsService }          from './reports.service';
 import { AccountingExportService } from './accounting-export.service';
 import { KpiService }              from './kpi.service';
+import { ReconciliationService, UnbilledType } from './reconciliation.service';
 import { ReportFiltersDto, AccountingExportDto, ExportFormat } from './dto/report-filters.dto';
 
 // Rapoartele financiare sunt vizibile și pentru ACCOUNTANT
@@ -24,6 +25,7 @@ export class ReportsController {
     private readonly reportsService:          ReportsService,
     private readonly accountingExportService: AccountingExportService,
     private readonly kpiService:              KpiService,
+    private readonly reconciliationService:   ReconciliationService,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -315,5 +317,49 @@ export class ReportsController {
   ) {
     if (!from || !to) throw new BadRequestException('from și to sunt obligatorii');
     return this.kpiService.getKpiSpv(from, to);
+  }
+
+  // -------------------------------------------------------------------------
+  // Reconciliere servicii prestate vs. facturate — G-15 (Sesiunea 8)
+  // -------------------------------------------------------------------------
+
+  @Get('reconciliation/unbilled/summary')
+  @Roles(...REPORT_ROLES)
+  reconciliationSummary(
+    @Query('from') from?: string,
+    @Query('to')   to?:   string,
+  ) {
+    return this.reconciliationService.getSummary(from, to);
+  }
+
+  @Get('reconciliation/unbilled/:consultationId')
+  @Roles(...REPORT_ROLES)
+  reconciliationDetail(@Param('consultationId', ParseUUIDPipe) consultationId: string) {
+    return this.reconciliationService.getDetail(consultationId);
+  }
+
+  @Get('reconciliation/unbilled')
+  @Roles(...REPORT_ROLES)
+  reconciliationUnbilled(
+    @Query('from')        from?:        string,
+    @Query('to')          to?:          string,
+    @Query('type')        type?:        string,
+    @Query('minSeverity') minSeverity?: string,
+  ) {
+    return this.reconciliationService.getUnbilledItems({
+      from,
+      to,
+      type:        type        as UnbilledType | undefined,
+      minSeverity: minSeverity as 'info' | 'warning' | 'critical' | undefined,
+    });
+  }
+
+  @Post('reconciliation/unbilled/run')
+  @Roles(...REPORT_ROLES)
+  reconciliationRun(
+    @Query('from') from?: string,
+    @Query('to')   to?:   string,
+  ) {
+    return this.reconciliationService.getSummary(from, to);
   }
 }

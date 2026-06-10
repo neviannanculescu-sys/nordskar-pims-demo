@@ -85,9 +85,11 @@ export class AiAssistantService {
   private readonly model = 'claude-haiku-4-5-20251001'; // haiku pentru latență mică
 
   constructor(private readonly config: ConfigService) {
-    this.client = new Anthropic({
-      apiKey: this.config.getOrThrow<string>('ANTHROPIC_API_KEY'),
-    });
+    const apiKey = this.config.get<string>('ANTHROPIC_API_KEY', '');
+    if (!apiKey) {
+      this.logger.warn('ANTHROPIC_API_KEY not set — AI assistant will return fallback responses');
+    }
+    this.client = new Anthropic({ apiKey: apiKey || 'sk-placeholder' });
   }
 
   // -------------------------------------------------------------------------

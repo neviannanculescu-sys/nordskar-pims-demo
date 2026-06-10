@@ -10,6 +10,7 @@ import { UserRole }      from '../../database/schema';
 import { MEDICAL_ROLES } from '../../common/constants/roles.constants';
 import { ReportsService }          from './reports.service';
 import { AccountingExportService } from './accounting-export.service';
+import { KpiService }              from './kpi.service';
 import { ReportFiltersDto, AccountingExportDto, ExportFormat } from './dto/report-filters.dto';
 
 // Rapoartele financiare sunt vizibile și pentru ACCOUNTANT
@@ -20,8 +21,9 @@ const ACCOUNTING_ROLES = [UserRole.ADMIN, UserRole.ACCOUNTANT] as const;
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ReportsController {
   constructor(
-    private readonly reportsService:   ReportsService,
+    private readonly reportsService:          ReportsService,
     private readonly accountingExportService: AccountingExportService,
+    private readonly kpiService:              KpiService,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -257,5 +259,61 @@ export class ReportsController {
   ) {
     if (!dateFrom || !dateTo) throw new BadRequestException('dateFrom și dateTo sunt obligatorii');
     return this.accountingExportService.getReconciliationSummary(dateFrom, dateTo);
+  }
+
+  // -------------------------------------------------------------------------
+  // KPI Management — Sesiunea 7
+  // -------------------------------------------------------------------------
+
+  @Get('kpi/dashboard')
+  @Roles(...REPORT_ROLES)
+  kpiDashboard(@Query('date') date?: string) {
+    return this.kpiService.getKpiDashboard(date);
+  }
+
+  @Get('kpi/week-over-week')
+  @Roles(...REPORT_ROLES)
+  kpiWeekOverWeek(@Query('date') date?: string) {
+    return this.kpiService.getWeekOverWeek(date);
+  }
+
+  @Get('kpi/financial')
+  @Roles(...REPORT_ROLES)
+  kpiFinancial(
+    @Query('from') from: string,
+    @Query('to')   to:   string,
+  ) {
+    if (!from || !to) throw new BadRequestException('from și to sunt obligatorii');
+    return this.kpiService.getKpiFinancial(from, to);
+  }
+
+  @Get('kpi/operations')
+  @Roles(...REPORT_ROLES)
+  kpiOperations(
+    @Query('from') from: string,
+    @Query('to')   to:   string,
+  ) {
+    if (!from || !to) throw new BadRequestException('from și to sunt obligatorii');
+    return this.kpiService.getKpiOperations(from, to);
+  }
+
+  @Get('kpi/inventory')
+  @Roles(...REPORT_ROLES)
+  kpiInventory(
+    @Query('from') from: string,
+    @Query('to')   to:   string,
+  ) {
+    if (!from || !to) throw new BadRequestException('from și to sunt obligatorii');
+    return this.kpiService.getKpiInventory(from, to);
+  }
+
+  @Get('kpi/spv')
+  @Roles(...REPORT_ROLES)
+  kpiSpv(
+    @Query('from') from: string,
+    @Query('to')   to:   string,
+  ) {
+    if (!from || !to) throw new BadRequestException('from și to sunt obligatorii');
+    return this.kpiService.getKpiSpv(from, to);
   }
 }

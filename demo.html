@@ -111,6 +111,23 @@
     }
     .acc-tab:hover  { color: #6b4a2e; }
     .acc-tab-active { color: #9c6b30; border-bottom-color: #9c6b30; font-weight: 600; }
+
+    /* KPI Management */
+    .kpi-card { background:white; border:1px solid #e8d5b7; border-radius:10px; padding:16px; }
+    .kpi-card.status-ok      { border-left:4px solid #16a34a; }
+    .kpi-card.status-warning { border-left:4px solid #d97706; }
+    .kpi-card.status-danger  { border-left:4px solid #dc2626; }
+    .kpi-card.status-neutral { border-left:4px solid #9ca3af; }
+    .kpi-label { font-size:11px; font-weight:600; color:#9b7653; text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
+    .kpi-value { font-size:22px; font-weight:700; color:#2d1a0a; }
+    .kpi-delta { font-size:12px; margin-top:4px; color:#6b7280; }
+    .kpi-delta.up   { color:#16a34a; }
+    .kpi-delta.down { color:#dc2626; }
+    .btn-kpi-period { padding:5px 12px; border:1px solid #d6b896; border-radius:6px; background:white; font-size:12px; color:#6b4228; cursor:pointer; }
+    .btn-kpi-period.active { background:#92400e; color:white; border-color:#92400e; }
+    .kpi-wow-item { background:#fffbf5; border:1px solid #e8d5b7; border-radius:8px; padding:10px 14px; }
+    .kpi-wow-label { font-size:11px; color:#9b7653; font-weight:600; }
+    .kpi-wow-val { font-size:15px; font-weight:700; color:#2d1a0a; margin-top:2px; }
   </style>
 </head>
 <body style="margin:0;">
@@ -230,6 +247,10 @@
         <a onclick="nav('daily')" class="sidebar-link" id="nav-daily">
           <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
           Raport Zilnic
+        </a>
+        <a onclick="nav('kpi')" class="sidebar-link" id="nav-kpi">
+          <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          Management
         </a>
       </nav>
 
@@ -965,6 +986,164 @@
           <div id="spv-drawer-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:199;" onclick="closeSpvDrawer()"></div>
 
         </div><!-- /page-spv -->
+
+        <!-- =================== PAGE: KPI MANAGEMENT =================== -->
+        <div id="page-kpi" class="page">
+          <div style="max-width:1200px;margin:0 auto;">
+
+            <!-- Header + filtre rapide -->
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:24px;">
+              <div>
+                <h2 style="font-size:18px;font-weight:700;color:#2d1a0a;margin:0;">Management KPI</h2>
+                <p style="font-size:13px;color:#9b7653;margin:4px 0 0;">Indicatori cheie de performanță — date reale</p>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <button onclick="kpiSetPeriod('today')" id="kpi-btn-today" class="btn-kpi-period active">Azi</button>
+                <button onclick="kpiSetPeriod('7d')"    id="kpi-btn-7d"    class="btn-kpi-period">7 zile</button>
+                <button onclick="kpiSetPeriod('30d')"   id="kpi-btn-30d"   class="btn-kpi-period">30 zile</button>
+                <button onclick="loadKpiDashboard()" style="margin-left:8px;padding:6px 14px;border:none;border-radius:6px;background:#92400e;color:white;font-size:13px;cursor:pointer;">↻ Reîncarcă</button>
+              </div>
+            </div>
+
+            <!-- KPI Cards Grid -->
+            <div id="kpi-cards-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:28px;">
+              <div class="kpi-card" id="kpi-card-revenue">
+                <div class="kpi-label">Venit perioadă</div>
+                <div class="kpi-value" id="kpi-revenue-val">—</div>
+                <div class="kpi-delta" id="kpi-revenue-delta"></div>
+              </div>
+              <div class="kpi-card" id="kpi-card-avg-ticket">
+                <div class="kpi-label">Bon mediu / factură</div>
+                <div class="kpi-value" id="kpi-avg-ticket-val">—</div>
+                <div class="kpi-delta" id="kpi-avg-ticket-delta"></div>
+              </div>
+              <div class="kpi-card" id="kpi-card-ttb">
+                <div class="kpi-label">Time-to-bill (ore)</div>
+                <div class="kpi-value" id="kpi-ttb-val">—</div>
+                <div class="kpi-delta" id="kpi-ttb-delta"></div>
+              </div>
+              <div class="kpi-card" id="kpi-card-outstanding">
+                <div class="kpi-label">Creanțe restante</div>
+                <div class="kpi-value" id="kpi-outstanding-val">—</div>
+                <div class="kpi-delta" id="kpi-outstanding-delta"></div>
+              </div>
+              <div class="kpi-card" id="kpi-card-occupancy">
+                <div class="kpi-label">Ocupare programări</div>
+                <div class="kpi-value" id="kpi-occupancy-val">—</div>
+                <div class="kpi-delta" id="kpi-occupancy-delta"></div>
+              </div>
+              <div class="kpi-card" id="kpi-card-noshow">
+                <div class="kpi-label">Rată no-show</div>
+                <div class="kpi-value" id="kpi-noshow-val">—</div>
+                <div class="kpi-delta" id="kpi-noshow-delta"></div>
+              </div>
+              <div class="kpi-card" id="kpi-card-spv-err">
+                <div class="kpi-label">Erori SPV</div>
+                <div class="kpi-value" id="kpi-spv-err-val">—</div>
+                <div class="kpi-delta" id="kpi-spv-err-delta"></div>
+              </div>
+              <div class="kpi-card" id="kpi-card-unbilled">
+                <div class="kpi-label">Nefacturate (est.)</div>
+                <div class="kpi-value" id="kpi-unbilled-val">—</div>
+                <div class="kpi-delta" id="kpi-unbilled-delta"></div>
+              </div>
+              <div class="kpi-card" id="kpi-card-lowstock">
+                <div class="kpi-label">Stoc sub minim</div>
+                <div class="kpi-value" id="kpi-lowstock-val">—</div>
+                <div class="kpi-delta" id="kpi-lowstock-delta"></div>
+              </div>
+            </div>
+
+            <!-- Week-over-week banner -->
+            <div id="kpi-wow-section" style="background:#fffbf5;border:1px solid #e8d5b7;border-radius:10px;padding:16px 20px;margin-bottom:28px;">
+              <div style="font-size:13px;font-weight:600;color:#92400e;margin-bottom:10px;">Comparativ săptămânal (ultimele 7 zile vs săptămâna precedentă)</div>
+              <div id="kpi-wow-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;">
+                <div class="kpi-wow-item"><div class="kpi-wow-label">Venit</div><div class="kpi-wow-val" id="wow-revenue">—</div></div>
+                <div class="kpi-wow-item"><div class="kpi-wow-label">Facturi emise</div><div class="kpi-wow-val" id="wow-invoices">—</div></div>
+                <div class="kpi-wow-item"><div class="kpi-wow-label">Consultații</div><div class="kpi-wow-val" id="wow-consult">—</div></div>
+                <div class="kpi-wow-item"><div class="kpi-wow-label">No-show-uri</div><div class="kpi-wow-val" id="wow-noshow">—</div></div>
+                <div class="kpi-wow-item"><div class="kpi-wow-label">Bon mediu</div><div class="kpi-wow-val" id="wow-avg">—</div></div>
+                <div class="kpi-wow-item"><div class="kpi-wow-label">Erori SPV</div><div class="kpi-wow-val" id="wow-spv">—</div></div>
+              </div>
+            </div>
+
+            <!-- 4 Secțiuni detalii -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px;" id="kpi-detail-grid">
+
+              <!-- Financiar: Top Creanțe -->
+              <div style="background:white;border:1px solid #e8d5b7;border-radius:10px;overflow:hidden;">
+                <div style="padding:14px 16px;background:#fef9f0;border-bottom:1px solid #e8d5b7;font-size:13px;font-weight:600;color:#92400e;">💰 Top Creanțe Restante</div>
+                <div id="kpi-tbl-outstanding" style="overflow-x:auto;">
+                  <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                    <thead><tr style="background:#f9f5ee;">
+                      <th style="padding:8px 12px;text-align:left;color:#6b4228;">Factură</th>
+                      <th style="padding:8px 12px;text-align:left;color:#6b4228;">Client</th>
+                      <th style="padding:8px 12px;text-align:right;color:#6b4228;">Restant</th>
+                      <th style="padding:8px 12px;text-align:right;color:#6b4228;">Zile</th>
+                    </tr></thead>
+                    <tbody id="kpi-outstanding-body"><tr><td colspan="4" style="padding:16px;text-align:center;color:#9ca3af;">Se încarcă...</td></tr></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- SPV Problematice -->
+              <div style="background:white;border:1px solid #e8d5b7;border-radius:10px;overflow:hidden;">
+                <div style="padding:14px 16px;background:#fef9f0;border-bottom:1px solid #e8d5b7;font-size:13px;font-weight:600;color:#92400e;">⚠️ Facturi SPV Problematice</div>
+                <div id="kpi-tbl-spv" style="overflow-x:auto;">
+                  <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                    <thead><tr style="background:#f9f5ee;">
+                      <th style="padding:8px 12px;text-align:left;color:#6b4228;">Factură</th>
+                      <th style="padding:8px 12px;text-align:left;color:#6b4228;">Status</th>
+                      <th style="padding:8px 12px;text-align:left;color:#6b4228;">Eroare</th>
+                    </tr></thead>
+                    <tbody id="kpi-spv-body"><tr><td colspan="3" style="padding:16px;text-align:center;color:#9ca3af;">Se încarcă...</td></tr></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Produse sub minim -->
+              <div style="background:white;border:1px solid #e8d5b7;border-radius:10px;overflow:hidden;">
+                <div style="padding:14px 16px;background:#fef9f0;border-bottom:1px solid #e8d5b7;font-size:13px;font-weight:600;color:#92400e;">📦 Produse Sub Stoc Minim</div>
+                <div id="kpi-tbl-stock" style="overflow-x:auto;">
+                  <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                    <thead><tr style="background:#f9f5ee;">
+                      <th style="padding:8px 12px;text-align:left;color:#6b4228;">Produs</th>
+                      <th style="padding:8px 12px;text-align:right;color:#6b4228;">Stoc</th>
+                      <th style="padding:8px 12px;text-align:right;color:#6b4228;">Minim</th>
+                      <th style="padding:8px 12px;text-align:left;color:#6b4228;">UM</th>
+                    </tr></thead>
+                    <tbody id="kpi-stock-body"><tr><td colspan="4" style="padding:16px;text-align:center;color:#9ca3af;">Se încarcă...</td></tr></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Servicii nefacturate suspecte -->
+              <div style="background:white;border:1px solid #e8d5b7;border-radius:10px;overflow:hidden;">
+                <div style="padding:14px 16px;background:#fef9f0;border-bottom:1px solid #e8d5b7;font-size:13px;font-weight:600;color:#92400e;">🔍 Servicii Suspect Nefacturate</div>
+                <div id="kpi-tbl-unbilled" style="overflow-x:auto;">
+                  <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                    <thead><tr style="background:#f9f5ee;">
+                      <th style="padding:8px 12px;text-align:left;color:#6b4228;">Data</th>
+                      <th style="padding:8px 12px;text-align:left;color:#6b4228;">Animal / Client</th>
+                      <th style="padding:8px 12px;text-align:right;color:#6b4228;">Est. RON</th>
+                      <th style="padding:8px 12px;text-align:right;color:#6b4228;">Zile</th>
+                    </tr></thead>
+                    <tbody id="kpi-unbilled-body"><tr><td colspan="4" style="padding:16px;text-align:center;color:#9ca3af;">Se încarcă...</td></tr></tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div><!-- /kpi-detail-grid -->
+
+            <!-- Error state -->
+            <div id="kpi-error-state" style="display:none;text-align:center;padding:32px;color:#dc2626;background:#fff5f5;border:1px solid #fecaca;border-radius:10px;">
+              <div style="font-size:24px;margin-bottom:8px;">⚠️</div>
+              <div id="kpi-error-msg" style="font-size:14px;">Eroare la încărcarea KPI-urilor.</div>
+            </div>
+
+          </div>
+        </div><!-- /page-kpi -->
+
 
       </div><!-- /pages -->
     </main>
@@ -1907,6 +2086,7 @@ function nav(page) {
     consultations: ['Consultații',     '6 consultații recente'],
     invoices:      ['Facturi',         'Jurnal vânzări'],
     spv:           ['SPV / e-Factura', 'Statusuri transmisii ANAF'],
+    kpi:           ['Management KPI',  'Indicatori cheie de performanță'],
   };
   document.getElementById('pageTitle').textContent = titles[page]?.[0] ?? page;
   if (titles[page]?.[1]) {
@@ -1917,6 +2097,7 @@ function nav(page) {
 
   // Încarcă date la prima navigare pe paginile cu date live
   if (page === 'spv') loadSpvDashboard();
+  if (page === 'kpi') loadKpiDashboard();
 }
 
 async function renderAll() {
@@ -4662,6 +4843,222 @@ function renderDailyReport(d) {
   }
 
   document.getElementById('daily-content').style.display = 'block';
+}
+
+// Enter pe login
+document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('loginEmail').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+// ==================== KPI MANAGEMENT ====================
+
+let _kpiPeriod = 'today';   // 'today' | '7d' | '30d'
+
+function kpiSetPeriod(p) {
+  _kpiPeriod = p;
+  document.querySelectorAll('.btn-kpi-period').forEach(b => b.classList.remove('active'));
+  document.getElementById('kpi-btn-' + p).classList.add('active');
+  loadKpiDashboard();
+}
+
+function _kpiDateRange() {
+  const today = new Date().toISOString().slice(0, 10);
+  if (_kpiPeriod === 'today') return { from: today, to: today, date: today };
+  const d = new Date();
+  if (_kpiPeriod === '7d')  d.setDate(d.getDate() - 6);
+  if (_kpiPeriod === '30d') d.setDate(d.getDate() - 29);
+  return { from: d.toISOString().slice(0, 10), to: today, date: today };
+}
+
+function _kpiStatusClass(status) {
+  if (status === 'ok')      return 'status-ok';
+  if (status === 'warning') return 'status-warning';
+  if (status === 'danger')  return 'status-danger';
+  return 'status-neutral';
+}
+
+function _kpiDeltaHtml(kv, isRon, isPercent) {
+  if (kv.delta === null || kv.prev === null) return '';
+  const sign = kv.delta >= 0 ? '+' : '';
+  const rel  = kv.deltaRel !== null ? ` (${kv.delta >= 0 ? '+' : ''}${kv.deltaRel}%)` : '';
+  const val  = isRon     ? `${sign}${_fmtRON(kv.delta)} RON${rel}`
+             : isPercent ? `${sign}${kv.delta.toFixed(1)}pp${rel}`
+             : `${sign}${kv.delta.toFixed(1)}${rel}`;
+  const cls  = kv.delta >= 0 ? 'up' : 'down';
+  return `<span class="kpi-delta ${cls}">vs. anterior: ${val}</span>`;
+}
+
+function _renderKpiCard(id, kv, valueHtml) {
+  const card = document.getElementById('kpi-card-' + id);
+  if (card) {
+    card.className = 'kpi-card ' + _kpiStatusClass(kv.status);
+  }
+  _setEl('kpi-' + id + '-val', valueHtml);
+}
+
+async function loadKpiDashboard() {
+  const { from, to, date } = _kpiDateRange();
+
+  document.getElementById('kpi-error-state').style.display = 'none';
+
+  // Reset cards to loading state
+  ['revenue','avg-ticket','ttb','outstanding','occupancy','noshow','spv-err','unbilled','lowstock'].forEach(id => {
+    const el = document.getElementById('kpi-' + id + '-val');
+    if (el) el.textContent = '…';
+    const del = document.getElementById('kpi-' + id + '-delta');
+    if (del) del.innerHTML = '';
+  });
+
+  try {
+    const [dash, wow, fin, ops, inv, spv] = await Promise.all([
+      apiRequest('GET', `/reports/kpi/dashboard?date=${date}`),
+      apiRequest('GET', `/reports/kpi/week-over-week?date=${date}`),
+      apiRequest('GET', `/reports/kpi/financial?from=${from}&to=${to}`),
+      apiRequest('GET', `/reports/kpi/operations?from=${from}&to=${to}`),
+      apiRequest('GET', `/reports/kpi/inventory?from=${from}&to=${to}`),
+      apiRequest('GET', `/reports/kpi/spv?from=${from}&to=${to}`),
+    ]);
+
+    if (!dash.ok) throw new Error(dash.error ?? 'Eroare dashboard KPI');
+
+    const d = dash.data;
+
+    // KPI Cards
+    _renderKpiCard('revenue',    d.revenue,    _fmtRON(d.revenue.value) + ' RON');
+    document.getElementById('kpi-revenue-delta').innerHTML = _kpiDeltaHtml(d.revenue, true, false);
+
+    _renderKpiCard('avg-ticket', d.avgTicket,  _fmtRON(d.avgTicket.value) + ' RON');
+    document.getElementById('kpi-avg-ticket-delta').innerHTML = _kpiDeltaHtml(d.avgTicket, true, false);
+
+    _renderKpiCard('ttb',        d.timeToBill, d.timeToBill.value.toFixed(1) + 'h');
+    document.getElementById('kpi-ttb-delta').innerHTML = '';
+
+    _renderKpiCard('outstanding', d.outstanding, _fmtRON(d.outstanding.value) + ' RON');
+    document.getElementById('kpi-outstanding-delta').innerHTML = '';
+
+    _renderKpiCard('occupancy',  d.occupancyRate, d.occupancyRate.value.toFixed(1) + '%');
+    document.getElementById('kpi-occupancy-delta').innerHTML = '';
+
+    _renderKpiCard('noshow',     d.noShowRate,  d.noShowRate.value.toFixed(1) + '%');
+    document.getElementById('kpi-noshow-delta').innerHTML = '';
+
+    _renderKpiCard('spv-err',    d.spvErrorRate, d.spvErrorRate.value.toFixed(1) + '%');
+    document.getElementById('kpi-spv-err-delta').innerHTML = '';
+
+    _renderKpiCard('unbilled',   d.unbilledValue, _fmtRON(d.unbilledValue.value) + ' RON');
+    document.getElementById('kpi-unbilled-delta').innerHTML = '';
+
+    _renderKpiCard('lowstock',   d.lowStockCount, d.lowStockCount.value.toString());
+    document.getElementById('kpi-lowstock-delta').innerHTML = '';
+
+    // Week-over-week
+    if (wow.ok) {
+      const w = wow.data;
+      const wowFmt = (kv, isRon) => {
+        const sign = kv.delta >= 0 ? '+' : '';
+        const rel  = kv.deltaRel !== null ? ` (${sign}${kv.deltaRel}%)` : '';
+        const main = isRon ? `${_fmtRON(kv.value)} RON` : kv.value.toLocaleString('ro-RO');
+        const deltaStr = isRon ? `${sign}${_fmtRON(kv.delta)} RON` : `${sign}${kv.delta.toLocaleString('ro-RO')}`;
+        const color = kv.delta >= 0 ? '#16a34a' : '#dc2626';
+        return `<div style="font-size:13px;font-weight:700;">${main}</div><div style="font-size:11px;color:${color};">${deltaStr}${rel}</div>`;
+      };
+      document.getElementById('wow-revenue').innerHTML  = wowFmt(w.revenue, true);
+      document.getElementById('wow-invoices').innerHTML = wowFmt(w.invoiceCount, false);
+      document.getElementById('wow-consult').innerHTML  = wowFmt(w.consultations, false);
+      document.getElementById('wow-noshow').innerHTML   = wowFmt(w.noShows, false);
+      document.getElementById('wow-avg').innerHTML      = wowFmt(w.avgTicket, true);
+      document.getElementById('wow-spv').innerHTML      = wowFmt(w.spvErrors, false);
+    }
+
+    // Table: top creanțe
+    if (fin.ok) {
+      const rows = (fin.data.topOutstanding ?? []).slice(0, 10);
+      const body = document.getElementById('kpi-outstanding-body');
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="4" style="padding:16px;text-align:center;color:#9ca3af;">Nicio creanță restantă</td></tr>';
+      } else {
+        body.innerHTML = rows.map(r => {
+          const badge = r.daysOverdue > 30
+            ? `<span style="background:#fef2f2;color:#dc2626;border-radius:4px;padding:1px 6px;font-size:10px;">${r.daysOverdue}z</span>`
+            : r.daysOverdue > 0
+            ? `<span style="background:#fffbeb;color:#d97706;border-radius:4px;padding:1px 6px;font-size:10px;">${r.daysOverdue}z</span>`
+            : '';
+          return `<tr style="border-top:1px solid #f3ebe0;">
+            <td style="padding:8px 12px;">${r.invoiceNumber}</td>
+            <td style="padding:8px 12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.ownerName}</td>
+            <td style="padding:8px 12px;text-align:right;font-weight:600;">${_fmtRON(r.outstanding)} RON</td>
+            <td style="padding:8px 12px;text-align:right;">${badge}</td>
+          </tr>`;
+        }).join('');
+      }
+    }
+
+    // Table: SPV problematice
+    if (spv.ok) {
+      const rows = (spv.data.problematic ?? []).slice(0, 10);
+      const body = document.getElementById('kpi-spv-body');
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="3" style="padding:16px;text-align:center;color:#9ca3af;">Nicio problemă SPV în perioadă</td></tr>';
+      } else {
+        body.innerHTML = rows.map(r => {
+          const sBadge = r.status === 'rejected'
+            ? `<span style="background:#fef2f2;color:#dc2626;border-radius:4px;padding:1px 6px;font-size:10px;">Respins</span>`
+            : `<span style="background:#fff7ed;color:#c2410c;border-radius:4px;padding:1px 6px;font-size:10px;">Eroare</span>`;
+          const errTxt = r.errorMessage ? r.errorMessage.slice(0, 40) + (r.errorMessage.length > 40 ? '…' : '') : '—';
+          return `<tr style="border-top:1px solid #f3ebe0;">
+            <td style="padding:8px 12px;">${r.invoiceNumber}</td>
+            <td style="padding:8px 12px;">${sBadge}</td>
+            <td style="padding:8px 12px;color:#6b7280;font-size:11px;">${errTxt}</td>
+          </tr>`;
+        }).join('');
+      }
+    }
+
+    // Table: stoc sub minim
+    if (inv.ok) {
+      const rows = (inv.data.lowStockItems ?? []).slice(0, 10);
+      const body = document.getElementById('kpi-stock-body');
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="4" style="padding:16px;text-align:center;color:#9ca3af;">Toate produsele au stoc suficient</td></tr>';
+      } else {
+        body.innerHTML = rows.map(r => {
+          const pct = r.min > 0 ? Math.round(r.current / r.min * 100) : 0;
+          const col = pct < 50 ? '#dc2626' : '#d97706';
+          return `<tr style="border-top:1px solid #f3ebe0;">
+            <td style="padding:8px 12px;">${r.name}</td>
+            <td style="padding:8px 12px;text-align:right;font-weight:600;color:${col};">${r.current}</td>
+            <td style="padding:8px 12px;text-align:right;color:#6b7280;">${r.min}</td>
+            <td style="padding:8px 12px;">${r.unit}</td>
+          </tr>`;
+        }).join('');
+      }
+    }
+
+    // Table: servicii nefacturate
+    if (ops.ok) {
+      const rows = (ops.data.suspectRows ?? []).slice(0, 10);
+      const body = document.getElementById('kpi-unbilled-body');
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="4" style="padding:16px;text-align:center;color:#9ca3af;">Nicio prestație suspect nefacturată</td></tr>';
+      } else {
+        body.innerHTML = rows.map(r => {
+          const col = r.daysSince > 7 ? '#dc2626' : r.daysSince > 3 ? '#d97706' : '#6b7280';
+          return `<tr style="border-top:1px solid #f3ebe0;">
+            <td style="padding:8px 12px;">${r.consultationDate}</td>
+            <td style="padding:8px 12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+              <span style="font-weight:600;">${r.petName}</span>
+              <span style="color:#9b7653;"> / ${r.ownerName}</span>
+            </td>
+            <td style="padding:8px 12px;text-align:right;font-weight:600;color:#92400e;">${_fmtRON(r.estimatedTotal)} RON</td>
+            <td style="padding:8px 12px;text-align:right;color:${col};font-weight:600;">${r.daysSince}z</td>
+          </tr>`;
+        }).join('');
+      }
+    }
+
+  } catch (err) {
+    document.getElementById('kpi-error-state').style.display = 'block';
+    document.getElementById('kpi-error-msg').textContent = 'Eroare la încărcarea KPI-urilor: ' + (err.message ?? err);
+  }
 }
 
 // Enter pe login

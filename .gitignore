@@ -1,0 +1,15 @@
+# Netlify
+.netlify
+
+# Node
+node_modules/
+
+# Env
+.env
+.env.local
+
+# Scripts de fix (nu sunt necesare în repo)
+fix_encoding.ps1
+
+# Claude session
+.claude/

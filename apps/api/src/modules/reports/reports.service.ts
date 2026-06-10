@@ -72,6 +72,91 @@ export interface DashboardSummary {
   stock:   { lowStockItems: number };
 }
 
+export interface DailyReportData {
+  reportDate:    string;   // ziua pentru care s-a generat raportul (azi)
+  generatedAt:   string;   // ISO timestamp
+
+  revenue: {
+    date:             string;   // ieri
+    total:            number;
+    invoiceCount:     number;
+    paymentsByMethod: { method: string; amount: number; count: number }[];
+  };
+
+  appointments: {
+    date:      string;   // azi
+    total:     number;
+    items: {
+      scheduledAt: string;
+      petName:     string;
+      ownerName:   string;
+      vetName:     string;
+      reason:      string;
+      status:      string;
+      type:        string;
+    }[];
+  };
+
+  noShows: {
+    date:  string;   // ieri
+    count: number;
+    items: {
+      scheduledAt: string;
+      petName:     string;
+      ownerName:   string;
+      reason:      string;
+    }[];
+  };
+
+  receivablesDueToday: {
+    count:       number;
+    totalAmount: number;
+    items: {
+      invoiceNumber: string;
+      ownerName:     string;
+      totalAmount:   number;
+      outstanding:   number;
+      dueDate:       string;
+      daysOverdue:   number;
+    }[];
+  };
+
+  criticalStock: {
+    count: number;
+    items: {
+      sku:           string;
+      name:          string;
+      currentStock:  number;
+      minStockLevel: number;
+      unit:          string;
+    }[];
+  };
+
+  expiringProducts: {
+    count: number;
+    items: {
+      name:            string;
+      sku:             string;
+      lotNumber:       string | null;
+      expiryDate:      string;
+      quantity:        number;
+      daysUntilExpiry: number;
+    }[];
+  };
+
+  spv: {
+    pendingCount:  number;
+    errorCount:    number;
+    rejectedCount: number;
+    items: {
+      invoiceNumber: string;
+      status:        string;
+      submittedAt:   string | null;
+      errorMessage:  string | null;
+    }[];
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
@@ -481,10 +566,281 @@ export class ReportsService {
   }
 
   // -------------------------------------------------------------------------
+  // 8. Raport zilnic complet — toate secțiunile operaționale
+  // -------------------------------------------------------------------------
+
+  async getDailyReport(): Promise<DailyReportData> {
+    const now       = new Date();
+    const todayStr  = now.toISOString().slice(0, 10);
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().slice(0, 10);
+    const in7Days      = new Date(now);
+    in7Days.setDate(in7Days.getDate() + 7);
+    const in7DaysStr = in7Days.toISOString().slice(0, 10);
+
+    const [
+      revenueRows,
+      paymentsRows,
+      appointmentsRows,
+      noShowRows,
+      receivablesRows,
+      criticalStockRows,
+      expiringRows,
+      spvRows,
+    ] = await Promise.all([
+      // 1. Venituri ieri
+      this.db.execute<{
+        total: string; invoice_count: string;
+      }>(sql`
+        SELECT
+          COALESCE(SUM(total_amount), 0)::TEXT AS total,
+          COUNT(*)::TEXT                        AS invoice_count
+        FROM invoices
+        WHERE deleted_at IS NULL
+          AND status NOT IN ('draft','cancelled','storno')
+          AND issued_at::DATE = ${yesterdayStr}
+      `),
+
+      // 2. Plăți încasate ieri pe metode
+      this.db.execute<{
+        payment_method: string; amount: string; cnt: string;
+      }>(sql`
+        SELECT
+          p.payment_method,
+          SUM(p.amount)::TEXT  AS amount,
+          COUNT(*)::TEXT        AS cnt
+        FROM payments p
+        JOIN invoices i ON i.id = p.invoice_id
+        WHERE p.paid_at::DATE = ${yesterdayStr}
+          AND i.deleted_at IS NULL
+        GROUP BY p.payment_method
+        ORDER BY SUM(p.amount) DESC
+      `),
+
+      // 3. Programări azi
+      this.db.execute<{
+        scheduled_at: string; pet_name: string; owner_name: string;
+        vet_name: string; reason: string; status: string; type: string;
+      }>(sql`
+        SELECT
+          a.scheduled_at::TEXT                                       AS scheduled_at,
+          COALESCE(pt.name, 'Necunoscut')                            AS pet_name,
+          COALESCE(o.first_name || ' ' || o.last_name, 'Necunoscut') AS owner_name,
+          COALESCE(u.first_name || ' ' || u.last_name, '–')          AS vet_name,
+          a.reason,
+          a.status,
+          a.type
+        FROM appointments a
+        JOIN pets pt   ON pt.id = a.pet_id
+        JOIN owners o  ON o.id  = a.owner_id
+        LEFT JOIN veterinarians v ON v.id = a.veterinarian_id
+        LEFT JOIN users u         ON u.id = v.user_id
+        WHERE a.deleted_at IS NULL
+          AND a.scheduled_at::DATE = ${todayStr}
+          AND a.status NOT IN ('cancelled')
+        ORDER BY a.scheduled_at ASC
+      `),
+
+      // 4. No-show-uri ieri
+      this.db.execute<{
+        scheduled_at: string; pet_name: string; owner_name: string; reason: string;
+      }>(sql`
+        SELECT
+          a.scheduled_at::TEXT                                        AS scheduled_at,
+          COALESCE(pt.name, 'Necunoscut')                             AS pet_name,
+          COALESCE(o.first_name || ' ' || o.last_name, 'Necunoscut')  AS owner_name,
+          a.reason
+        FROM appointments a
+        JOIN pets pt  ON pt.id = a.pet_id
+        JOIN owners o ON o.id  = a.owner_id
+        WHERE a.deleted_at IS NULL
+          AND a.scheduled_at::DATE = ${yesterdayStr}
+          AND a.status = 'no_show'
+        ORDER BY a.scheduled_at ASC
+      `),
+
+      // 5. Creanțe scadente azi
+      this.db.execute<{
+        invoice_number: string; owner_name: string;
+        total_amount: string; paid_amount: string; due_date: string;
+      }>(sql`
+        SELECT
+          i.invoice_number,
+          COALESCE(i.billing_name, 'Necunoscut') AS owner_name,
+          i.total_amount::TEXT,
+          i.paid_amount::TEXT,
+          i.due_date::TEXT
+        FROM invoices i
+        WHERE i.deleted_at IS NULL
+          AND i.status IN ('issued','partially_paid')
+          AND i.due_date <= ${todayStr}
+        ORDER BY i.due_date ASC, i.total_amount DESC
+      `),
+
+      // 6. Stoc critic sub minim
+      this.db.execute<{
+        sku: string; name: string;
+        current_stock: string; min_stock_level: string; unit_of_measure: string;
+      }>(sql`
+        SELECT
+          sku, name,
+          current_stock::TEXT,
+          min_stock_level::TEXT,
+          unit_of_measure
+        FROM inventory_items
+        WHERE deleted_at IS NULL
+          AND is_active = TRUE
+          AND min_stock_level IS NOT NULL
+          AND current_stock < min_stock_level
+        ORDER BY (current_stock::NUMERIC / NULLIF(min_stock_level::NUMERIC, 0)) ASC
+      `),
+
+      // 7. Produse care expiră în 7 zile (din loturi de recepție active)
+      this.db.execute<{
+        name: string; sku: string; lot_number: string | null;
+        expiry_date: string; quantity: string;
+      }>(sql`
+        SELECT
+          ii.name,
+          ii.sku,
+          sm.lot_number,
+          sm.expiry_date::TEXT,
+          SUM(sm.quantity)::TEXT AS quantity
+        FROM stock_movements sm
+        JOIN inventory_items ii ON ii.id = sm.inventory_item_id
+        WHERE sm.expiry_date IS NOT NULL
+          AND sm.expiry_date BETWEEN ${todayStr} AND ${in7DaysStr}
+          AND sm.movement_type = 'purchase_receipt'
+          AND ii.deleted_at IS NULL
+        GROUP BY ii.name, ii.sku, sm.lot_number, sm.expiry_date
+        HAVING SUM(sm.quantity) > 0
+        ORDER BY sm.expiry_date ASC
+      `),
+
+      // 8. SPV B2B pending / error / rejected
+      this.db.execute<{
+        invoice_number: string; status: string;
+        submitted_at: string | null; error_message: string | null;
+      }>(sql`
+        SELECT
+          COALESCE(ss.invoice_number, i.invoice_number) AS invoice_number,
+          ss.status,
+          ss.submitted_at::TEXT,
+          ss.error_message
+        FROM spv_submissions ss
+        JOIN invoices i ON i.id = ss.invoice_id
+        WHERE ss.status IN ('pending','uploading','uploaded','processing','rejected','error')
+        ORDER BY ss.created_at DESC
+        LIMIT 50
+      `),
+    ]);
+
+    const today = new Date().getTime();
+
+    return {
+      reportDate:  todayStr,
+      generatedAt: now.toISOString(),
+
+      revenue: {
+        date:         yesterdayStr,
+        total:        parseFloat(revenueRows.rows[0]?.total        ?? '0'),
+        invoiceCount: parseInt(revenueRows.rows[0]?.invoice_count  ?? '0', 10),
+        paymentsByMethod: paymentsRows.rows.map((r) => ({
+          method: r.payment_method,
+          amount: parseFloat(r.amount ?? '0'),
+          count:  parseInt(r.cnt     ?? '0', 10),
+        })),
+      },
+
+      appointments: {
+        date:  todayStr,
+        total: appointmentsRows.rows.length,
+        items: appointmentsRows.rows.map((r) => ({
+          scheduledAt: r.scheduled_at,
+          petName:     r.pet_name,
+          ownerName:   r.owner_name,
+          vetName:     r.vet_name,
+          reason:      r.reason,
+          status:      r.status,
+          type:        r.type,
+        })),
+      },
+
+      noShows: {
+        date:  yesterdayStr,
+        count: noShowRows.rows.length,
+        items: noShowRows.rows.map((r) => ({
+          scheduledAt: r.scheduled_at,
+          petName:     r.pet_name,
+          ownerName:   r.owner_name,
+          reason:      r.reason,
+        })),
+      },
+
+      receivablesDueToday: {
+        count:       receivablesRows.rows.length,
+        totalAmount: receivablesRows.rows.reduce((s, r) => s + parseFloat(r.total_amount ?? '0'), 0),
+        items: receivablesRows.rows.map((r) => {
+          const total       = parseFloat(r.total_amount ?? '0');
+          const paid        = parseFloat(r.paid_amount  ?? '0');
+          const outstanding = +(total - paid).toFixed(2);
+          const dueTs       = r.due_date ? new Date(r.due_date).getTime() : null;
+          const daysOverdue = dueTs ? Math.max(0, Math.floor((today - dueTs) / 86_400_000)) : 0;
+          return {
+            invoiceNumber: r.invoice_number,
+            ownerName:     r.owner_name,
+            totalAmount:   total,
+            outstanding,
+            dueDate:       r.due_date,
+            daysOverdue,
+          };
+        }),
+      },
+
+      criticalStock: {
+        count: criticalStockRows.rows.length,
+        items: criticalStockRows.rows.map((r) => ({
+          sku:           r.sku,
+          name:          r.name,
+          currentStock:  parseFloat(r.current_stock    ?? '0'),
+          minStockLevel: parseFloat(r.min_stock_level  ?? '0'),
+          unit:          r.unit_of_measure,
+        })),
+      },
+
+      expiringProducts: {
+        count: expiringRows.rows.length,
+        items: expiringRows.rows.map((r) => {
+          const expiryTs       = new Date(r.expiry_date).getTime();
+          const daysUntilExpiry = Math.max(0, Math.floor((expiryTs - today) / 86_400_000));
+          return {
+            name:            r.name,
+            sku:             r.sku,
+            lotNumber:       r.lot_number ?? null,
+            expiryDate:      r.expiry_date,
+            quantity:        parseFloat(r.quantity ?? '0'),
+            daysUntilExpiry,
+          };
+        }),
+      },
+
+      spv: {
+        pendingCount:  spvRows.rows.filter((r) => ['pending','uploading','uploaded','processing'].includes(r.status)).length,
+        errorCount:    spvRows.rows.filter((r) => r.status === 'error').length,
+        rejectedCount: spvRows.rows.filter((r) => r.status === 'rejected').length,
+        items: spvRows.rows.map((r) => ({
+          invoiceNumber: r.invoice_number,
+          status:        r.status,
+          submittedAt:   r.submitted_at ?? null,
+          errorMessage:  r.error_message ?? null,
+        })),
+      },
+    };
+  }
+
+  // -------------------------------------------------------------------------
   // Job automat: raport zilnic la 07:30
-  // Loghează sumarul operațional și serviciile nefacturate.
-  // Notificările externe (email, Slack) se configurează prin hooks la nivel
-  // de aplicație — acest job doar produce datele structurate.
   // -------------------------------------------------------------------------
 
   @Cron('30 7 * * *', { name: 'daily-report', timeZone: 'Europe/Bucharest' })
@@ -493,38 +849,42 @@ export class ReportsService {
     this.logger.log({ event: 'daily_report_start', date: today });
 
     try {
-      const [summary, unbilled] = await Promise.all([
-        this.dashboardSummary(),
-        this.getUnbilledServices(),
-      ]);
+      const report = await this.getDailyReport();
 
       this.logger.log({
-        event:                 'daily_report_complete',
-        date:                  today,
-        todayConsultations:    summary.today.consultations,
-        todayRevenue:          summary.today.revenue,
-        monthRevenue:          summary.month.revenue,
-        monthOutstanding:      summary.month.outstanding,
-        spvPending:            summary.spv.pending,
-        spvRejected:           summary.spv.rejected,
-        lowStockItems:         summary.stock.lowStockItems,
-        unbilledConsultations: unbilled.length,
-        unbilledEstimatedTotal: unbilled.reduce((s, r) => s + r.estimatedTotal, 0),
+        event:                'daily_report_complete',
+        date:                 report.reportDate,
+        revenueYesterday:     report.revenue.total,
+        appointmentsToday:    report.appointments.total,
+        noShowsYesterday:     report.noShows.count,
+        receivablesDueToday:  report.receivablesDueToday.count,
+        criticalStockItems:   report.criticalStock.count,
+        expiringIn7Days:      report.expiringProducts.count,
+        spvPending:           report.spv.pendingCount,
+        spvRejected:          report.spv.rejectedCount,
+        spvError:             report.spv.errorCount,
       });
 
-      if (summary.spv.rejected > 0) {
+      if (report.spv.rejectedCount > 0 || report.spv.errorCount > 0) {
         this.logger.warn({
-          event:   'daily_report_spv_alert',
-          rejected: summary.spv.rejected,
-          message: 'Există facturi respinse de ANAF. Verificați modulul SPV.',
+          event:    'daily_report_spv_alert',
+          rejected: report.spv.rejectedCount,
+          error:    report.spv.errorCount,
+          message:  'Există facturi cu probleme SPV. Verificați modulul e-Factura.',
         });
       }
-
-      if (unbilled.length > 0) {
+      if (report.criticalStock.count > 0) {
         this.logger.warn({
-          event:   'daily_report_unbilled_alert',
-          count:   unbilled.length,
-          message: 'Există consultații semnate cu servicii nefacturate.',
+          event:   'daily_report_stock_alert',
+          count:   report.criticalStock.count,
+          message: 'Produse sub nivelul minim de stoc.',
+        });
+      }
+      if (report.noShows.count > 0) {
+        this.logger.warn({
+          event:   'daily_report_noshow_alert',
+          count:   report.noShows.count,
+          message: 'No-show-uri înregistrate ieri.',
         });
       }
     } catch (err) {

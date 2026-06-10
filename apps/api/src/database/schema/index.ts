@@ -1,4 +1,5 @@
 export * from './enums';
+export { UserRole, ROLES_KEY, MEDICAL_ROLES } from '../../common/constants/roles.constants';
 export * from './users';
 export * from './species';
 export * from './rooms';

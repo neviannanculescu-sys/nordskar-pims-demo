@@ -107,8 +107,8 @@
 
 <!-- DEMO BANNER -->
 <div class="demo-banner">
-  &#x21a; DEMO VIZUAL &#x2192;" Toate datele sunt fictive. Nicio informa&#x21b;ie nu este salvat&#x103;. |
-  <strong>Cont demo:</strong> admin@Nordskar.ro / demo1234
+  &#x21a; DEMO &#x2192;" Backend real conectat la Neon PostgreSQL. |
+  <strong>Login:</strong> admin@nordskar.ro / Admin1234!
 </div>
 
 <!-- ==================== LOGIN ==================== -->
@@ -132,19 +132,20 @@
     <div style="display:flex;flex-direction:column;gap:16px;">
       <div>
         <label>Email</label>
-        <input type="email" id="loginEmail" value="admin@Nordskar.ro" placeholder="admin@Nordskar.ro" />
+        <input type="email" id="loginEmail" value="admin@nordskar.ro" placeholder="admin@nordskar.ro" />
       </div>
       <div>
         <label>Parol&#x103;</label>
-        <input type="password" id="loginPass" value="demo1234" placeholder="Parola" />
+        <input type="password" id="loginPass" value="Admin1234!" placeholder="Parol&#x103;" />
       </div>
-      <p id="loginError" style="color:#dc2626;font-size:13px;display:none;">Email sau parol&#x103; incorecte. Folosi&#x21b;i datele din banner.</p>
-      <button onclick="doLogin()" style="width:100%;padding:12px;background:#e2ab3b;color:#3d2614;font-size:15px;font-weight:700;border:none;border-radius:10px;cursor:pointer;transition:background .15s;letter-spacing:.02em;" onmouseover="this.style.background='#c9932f'" onmouseout="this.style.background='#e2ab3b'">
-        Autentificare &#x2192;'
+      <p id="loginError" style="color:#dc2626;font-size:13px;display:none;margin:0;"></p>
+      <button id="loginBtn" onclick="doLogin()" style="width:100%;padding:12px;background:#e2ab3b;color:#3d2614;font-size:15px;font-weight:700;border:none;border-radius:10px;cursor:pointer;transition:background .15s;letter-spacing:.02em;" onmouseover="this.style.background='#c9932f'" onmouseout="this.style.background='#e2ab3b'">
+        Autentificare &#x2192;
       </button>
     </div>
     <div style="margin-top:20px;padding:12px;background:#fdf3dc;border-radius:10px;font-size:12px;color:#6b4228;text-align:center;border:1px solid #e8d5b7;">
-      <strong>Cont demo:</strong> admin@Nordskar.ro / demo1234
+      <strong>Cont demo:</strong> admin@nordskar.ro / Admin1234!<br>
+      <span style="color:#9a6d40;">Backend: http://localhost:3001</span>
     </div>
   </div>
 </div>
@@ -949,6 +950,128 @@
 
 <script>
 // ============================================================
+// API CONFIG
+// ============================================================
+
+const API_BASE = 'http://localhost:3001/api/v1';
+
+// Token trăiește exclusiv în memorie (nu localStorage, nu cookie).
+// Tab nou = login nou — acceptabil pentru demo intern.
+let _authToken   = null;   // accessToken JWT
+let _currentUser = null;   // { sub, email, role }
+
+/**
+ * Wrapper pentru toate request-urile autentificate.
+ * Returnează `{ ok: true, data, meta? }` sau `{ ok: false, status, message }`.
+ * - data: payload util (json.data dacă există, altfel json întreg)
+ * - meta: paginație opțională (json.meta)
+ */
+async function apiRequest(method, path, body = null) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (_authToken) headers['Authorization'] = 'Bearer ' + _authToken;
+
+  let response;
+  try {
+    response = await fetch(API_BASE + path, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch (_) {
+    return { ok: false, status: 0, message: 'Server indisponibil. Verific&#x103; c&#x103; backend-ul este pornit (port 3001).' };
+  }
+
+  let json;
+  try { json = await response.json(); } catch (_) { json = null; }
+
+  if (response.ok) {
+    return { ok: true, data: json?.data ?? json, meta: json?.meta ?? null };
+  }
+
+  const msg = Array.isArray(json?.message)
+    ? json.message.join(', ')
+    : (json?.message || (response.status === 401 ? 'Email sau parol&#x103; incorecte.' : `Eroare ${response.status}`));
+  return { ok: false, status: response.status, message: msg };
+}
+
+// ── Cache specii ────────────────────────────────────────────
+// { id: uuid, name: 'Câine'|'Pisică'|..., nameLower: 'câine' }
+let _speciesCache = [];
+
+// Mapare nume demo → aproximare din API
+const SPECIES_ALIASES = {
+  'câine':  'câine',
+  'caine':  'câine',
+  'dog':    'câine',
+  'pisică': 'pisic',
+  'pisica': 'pisic',
+  'cat':    'pisic',
+  'iepure': 'iepure',
+  'papagal':'papagal',
+  'hamster':'hamster',
+  'reptilă':'reptil',
+  'reptila':'reptil',
+};
+
+async function loadSpecies() {
+  const r = await apiRequest('GET', '/species');
+  if (r.ok && Array.isArray(r.data)) {
+    _speciesCache = r.data.map(s => ({
+      id:        s.id,
+      name:      s.nameRo || s.nameEn || s.name || '',
+      nameLower: (s.nameRo || s.nameEn || s.name || '').toLowerCase(),
+    }));
+  }
+}
+
+function findSpeciesId(nameOrAlias) {
+  const key   = (nameOrAlias || '').toLowerCase().trim();
+  const alias = SPECIES_ALIASES[key] || key;
+  const match = _speciesCache.find(s => s.nameLower.includes(alias) || alias.includes(s.nameLower));
+  return match?.id ?? null;
+}
+
+// ── Mapare API owner → shape demo ──────────────────────────
+function ownerToClient(o) {
+  const addrParts = [o.addressStreet, o.addressCity, o.addressCounty].filter(Boolean);
+  return {
+    id:        o.id,                                 // UUID
+    firstName: o.firstName || o.companyName || '',
+    lastName:  o.lastName  || '',
+    phone:     o.phonePrimary || '',
+    email:     o.email || '',
+    address:   addrParts.join(', ') || o.addressCity || '',
+    cui:       o.cui || '',
+    cnp:       o.cnp || '',
+    type:      o.type || 'individual',
+    animals:   o._petCount ?? 0,
+    lastVisit: o.lastVisit  || '&#x2192;',
+    active:    !o.deletedAt,
+  };
+}
+
+// ── Mapare API pet → shape demo ────────────────────────────
+function petToAnimal(p, ownerName) {
+  const ageStr = p.dateOfBirth
+    ? `${Math.floor((Date.now() - new Date(p.dateOfBirth)) / 31557600000)} ani`
+    : (p.approximateAge || '&#x2192;');
+  const speciesName = _speciesCache.find(s => s.id === (p.speciesId || p.species_id))?.name || '&#x2192;';
+  return {
+    id:          p.id,
+    name:        p.name,
+    species:     speciesName,
+    breed:       p.breedName || '&#x2192;',
+    owner:       ownerName || '&#x2192;',
+    ownerId:     p.ownerId,
+    age:         ageStr,
+    weight:      p.weightKg ? `${String(p.weightKg).replace('.', ',')} kg` : '&#x2192;',
+    lastConsult: '&#x2192;',
+    microchip:   p.chipNumber || '&#x2192;',
+    sex:         p.gender || 'unknown',
+  };
+}
+
+// ============================================================
 // DATE DEMO
 // ============================================================
 
@@ -1003,22 +1126,70 @@ const invoices = [
 // LOGIC&#x102;
 // ============================================================
 
-function doLogin() {
+// ── Login helpers ──────────────────────────────────────────
+function _setLoginError(msg) {
+  const el = document.getElementById('loginError');
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
+
+function _setLoginLoading(loading) {
+  const btn = document.getElementById('loginBtn');
+  btn.disabled     = loading;
+  btn.textContent  = loading ? 'Se conecteaz&#x103;...' : 'Autentificare →';
+  btn.style.opacity = loading ? '0.7' : '1';
+  btn.style.cursor  = loading ? 'not-allowed' : 'pointer';
+}
+
+function _parseJwt(token) {
+  try {
+    const payload = token.split('.')[1];
+    return JSON.parse(atob(payload.replace(/-/g,'+').replace(/_/g,'/')));
+  } catch (_) { return null; }
+}
+
+async function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
   const pass  = document.getElementById('loginPass').value;
-  if (email === 'admin@Nordskar.ro' && pass === 'demo1234') {
-    document.getElementById('loginPage').style.display = 'none';
-    document.getElementById('appShell').style.display = 'block';
-    renderAll();
-  } else {
-    document.getElementById('loginError').style.display = 'block';
+
+  _setLoginError('');
+  if (!email || !pass) { _setLoginError('Completeaz&#x103; email &#x219;i parol&#x103;.'); return; }
+
+  _setLoginLoading(true);
+
+  const result = await apiRequest('POST', '/auth/login', { email, password: pass });
+
+  _setLoginLoading(false);
+
+  if (!result.ok) {
+    _setLoginError(result.message);
+    return;
   }
+
+  // Salvare token în memorie
+  _authToken   = result.data.accessToken;
+  _currentUser = _parseJwt(_authToken);
+
+  // Validare rapidă — health check cu token (orice endpoint autentificat)
+  // Folosim /health care e public, dar tokenul e deja setat pentru request-urile viitoare.
+  // În plus verificăm că tokenul e valid prin decodare.
+  if (!_currentUser || !_currentUser.sub) {
+    _authToken = null; _currentUser = null;
+    _setLoginError('Token invalid primit de la server.');
+    return;
+  }
+
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('appShell').style.display  = 'block';
+  renderAll();
 }
 
 function doLogout() {
-  document.getElementById('appShell').style.display = 'none';
+  _authToken   = null;
+  _currentUser = null;
+  document.getElementById('appShell').style.display  = 'none';
   document.getElementById('loginPage').style.display = 'flex';
-  document.getElementById('loginError').style.display = 'none';
+  _setLoginError('');
 }
 
 function setSubtitle() {
@@ -1051,13 +1222,41 @@ function nav(page) {
   }
 }
 
-function renderAll() {
+async function renderAll() {
   setSubtitle();
-  renderClients(clients);
-  renderAnimals(animals);
+  // Încarc species o singură dată (cache pentru toată sesiunea)
+  if (_speciesCache.length === 0) await loadSpecies();
+  // Încarc clienți + animale din API
+  await loadClientsFromApi();
   renderAppointments();
   renderConsultations();
   renderInvoices(invoices);
+}
+
+async function loadClientsFromApi() {
+  const r = await apiRequest('GET', '/owners?limit=100');
+  if (r.ok && Array.isArray(r.data)) {
+    // Înlocuiește array-ul demo cu datele reale
+    clients.length = 0;
+    r.data.forEach(o => clients.push(ownerToClient(o)));
+  }
+  // Încarc și animalele
+  await loadAnimalsFromApi();
+  renderClients(clients);
+}
+
+async function loadAnimalsFromApi() {
+  animals.length = 0;
+  // Parcurg fiecare client și cer animalele lui
+  for (const c of clients) {
+    const r = await apiRequest('GET', `/owners/${c.id}/pets`);
+    if (r.ok && Array.isArray(r.data)) {
+      const ownerName = `${c.firstName} ${c.lastName}`.trim();
+      r.data.forEach(p => animals.push(petToAnimal(p, ownerName)));
+      c.animals = r.data.length;
+    }
+  }
+  renderAnimals(animals);
 }
 
 // ---- CLIEN&#x21a;I ----
@@ -1073,7 +1272,7 @@ function renderClients(data) {
       <td style="text-align:center;font-weight:600;color:#e2ab3b;">${c.animals}</td>
       <td style="color:#6b4a2e;">${c.lastVisit}</td>
       <td><span class="badge" style="${c.active ? 'background:#dcfce7;color:#166534;' : 'background:#fdf3e3;color:#6b4a2e;'}">${c.active ? 'Activ' : 'Inactiv'}</span></td>
-      <td style="text-align:right;"><button onclick="showClientDetails(${c.id})" style="background:none;border:none;color:#e2ab3b;font-size:12px;cursor:pointer;text-decoration:underline;">Fi&#x219;&#x103; client</button></td>
+      <td style="text-align:right;"><button onclick="showClientDetails('${c.id}')" style="background:none;border:none;color:#e2ab3b;font-size:12px;cursor:pointer;text-decoration:underline;">Fi&#x219;&#x103; client</button></td>
     </tr>`).join('');
 }
 function filterClients(q) {
@@ -1123,22 +1322,54 @@ function cancelAddClient() {
   }
 }
 
-function addDemoClient() {
-  const type  = document.getElementById('nc-type')?.value || 'individual';
-  const first = document.getElementById('nc-first')?.value.trim() || '';
-  const last  = document.getElementById('nc-last')?.value.trim()  || '';
-  const phone = document.getElementById('nc-phone')?.value.trim() || '';
-  const email = document.getElementById('nc-email')?.value.trim() || '';
+async function addDemoClient() {
+  const type    = document.getElementById('nc-type')?.value || 'individual';
+  const first   = document.getElementById('nc-first')?.value.trim() || '';
+  const last    = document.getElementById('nc-last')?.value.trim()  || '';
+  const phone   = document.getElementById('nc-phone')?.value.trim() || '';
+  const email   = document.getElementById('nc-email')?.value.trim() || '';
   const address = document.getElementById('nc-address')?.value.trim() || '';
-  const cui   = document.getElementById('nc-cui')?.value.trim()   || '';
+  const cui     = document.getElementById('nc-cui')?.value.trim()   || '';
+  const cnp     = document.getElementById('nc-cnp')?.value.trim()   || '';
 
-  if (!first) { showToast('&#x21a;️ Introduce&#x21b;i prenumele / denumirea!'); return; }
+  if (!first) { showToast('&#x21a;&#xfe0f; Introduce&#x21b;i prenumele / denumirea!'); return; }
+  if (!phone) { showToast('&#x21a;&#xfe0f; Telefonul este obligatoriu!'); return; }
 
   const fullName = type === 'company' ? first : `${first}${last ? ' ' + last : ''}`;
 
-  // Adaug&#x103; în array-ul de clien&#x21b;i
-  const newId = clients.length ? Math.max(...clients.map(c => c.id)) + 1 : 10;
-  clients.push({ id: newId, firstName: first, lastName: last, phone, email, address, animals: 0, lastVisit: '&#x2192;"', active: true });
+  // Construie&#x219;te DTO pentru API
+  const dto = {
+    type,
+    phonePrimary: phone,
+    gdprConsent:  true,
+    ...(email   ? { email }   : {}),
+    ...(address ? { addressStreet: address } : {}),
+  };
+  if (type === 'individual') {
+    dto.firstName = first;
+    dto.lastName  = last || '';
+    if (cnp && cnp.length === 13) dto.cnp = cnp;
+  } else {
+    dto.companyName = first;
+    if (cui) dto.cui = cui;
+  }
+
+  // Dezactiveaz&#x103; butonul de save temporar
+  const saveBtn = document.querySelector('#modal-addClient button[onclick*="addDemoClient"]');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Se salveaz&#x103;...'; }
+
+  const result = await apiRequest('POST', '/owners', dto);
+
+  if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Salveaz&#x103; clientul'; }
+
+  if (!result.ok) {
+    showToast('&#x21a;&#xfe0f; ' + result.message);
+    return;
+  }
+
+  // Adaug&#x103; clientul nou în array-ul local (f&#x103;r&#x103; re-fetch complet)
+  const newClient = ownerToClient(result.data);
+  clients.push(newClient);
   renderClients(clients);
 
   // &#xce;nchide modalul de client
@@ -1158,11 +1389,11 @@ function addDemoClient() {
       }
       sel.value = fullName;
     }
-    showToast(`&#x2713;" Client &#x2192;z${fullName}" creat &#x219;i selectat în factur&#x103;.`);
+    showToast(`&#x2713;&#xfe0f; Client &ldquo;${fullName}&rdquo; creat &#x219;i selectat în factur&#x103;.`);
   } else {
     // Deschide automat fi&#x219;a clientului nou creat
-    setTimeout(() => showClientDetails(newId), 50);
-    showToast(`&#x2713;" Client &#x2192;z${fullName}" creat. Fi&#x219;&#x103; deschis&#x103;.`);
+    setTimeout(() => showClientDetails(newClient.id), 50);
+    showToast(`&#x2713;&#xfe0f; Client &ldquo;${fullName}&rdquo; creat. Fi&#x219;&#x103; deschis&#x103;.`);
   }
 }
 
@@ -1185,7 +1416,7 @@ function renderAnimals(data) {
       <td style="color:#5c3d24;">${a.age}</td>
       <td style="color:#5c3d24;">${a.weight}</td>
       <td style="color:#6b4a2e;">${a.lastConsult}</td>
-      <td style="text-align:right;"><button onclick="showAnimalProfile(${a.id})" style="background:none;border:none;color:#e2ab3b;font-size:12px;cursor:pointer;">Fi&#x219;&#x103; medical&#x103;</button></td>
+      <td style="text-align:right;"><button onclick="showAnimalProfile('${a.id}')" style="background:none;border:none;color:#e2ab3b;font-size:12px;cursor:pointer;">Fi&#x219;&#x103; medical&#x103;</button></td>
     </tr>`).join('');
 }
 function filterAnimals(q) {
@@ -2028,49 +2259,54 @@ function resetAnimalForm() {
   const badge = document.getElementById('na-owner-badge'); if (badge) badge.style.display = 'none';
 }
 
-function saveDemoAnimal() {
-  const name     = (document.getElementById('na-name')?.value || '').trim();
-  const species  = document.getElementById('na-species')?.value || 'Câine';
-  const breed    = (document.getElementById('na-breed')?.value || '').trim() || 'Nedefinit';
-  const sex      = document.getElementById('na-sex')?.value || 'Mascul';
-  const birth    = document.getElementById('na-birth')?.value || '';
-  const weightRaw= parseFloat(document.getElementById('na-weight')?.value) || 0;
-  const clientId = parseInt(document.getElementById('na-owner')?.value) || _addAnimalForClientId;
-  const microchip= (document.getElementById('na-microchip')?.value || '').trim();
+async function saveDemoAnimal() {
+  const name      = (document.getElementById('na-name')?.value || '').trim();
+  const speciesTxt= document.getElementById('na-species')?.value || 'Câine';
+  const breed     = (document.getElementById('na-breed')?.value || '').trim();
+  const sexRaw    = document.getElementById('na-sex')?.value || 'Mascul';
+  const birth     = document.getElementById('na-birth')?.value || '';
+  const weightRaw = parseFloat(document.getElementById('na-weight')?.value) || 0;
+  const clientId  = document.getElementById('na-owner')?.value || _addAnimalForClientId;
+  const microchip = (document.getElementById('na-microchip')?.value || '').trim();
 
-  if (!name) { showToast('&#x21a;&#x21b; Numele animalului este obligatoriu!'); return; }
+  if (!name) { showToast('&#x21a;&#xfe0f; Numele animalului este obligatoriu!'); return; }
 
-  const client = clients.find(c => c.id === clientId);
-  if (!client) { showToast('&#x21a;&#x21b; Selecteaz&#x103; un proprietar!'); return; }
+  const client = clients.find(c => String(c.id) === String(clientId));
+  if (!client) { showToast('&#x21a;&#xfe0f; Selecteaz&#x103; un proprietar!'); return; }
 
-  const ownerName = `${client.firstName} ${client.lastName}`.trim();
+  // Mapeaz&#x103; specia pe UUID din cache
+  const speciesId = findSpeciesId(speciesTxt);
+  if (!speciesId) { showToast('&#x21a;&#xfe0f; Specia &ldquo;' + speciesTxt + '&rdquo; nu a fost g&#x103;sit&#x103; în baza de date!'); return; }
 
-  // Calculeaz&#x103; vârsta din data na&#x219;terii
-  let ageStr = '&#x2192;';
-  if (birth) {
-    const diffMs = Date.now() - new Date(birth).getTime();
-    const diffYr = diffMs / (1000 * 60 * 60 * 24 * 365.25);
-    if (diffYr >= 1) ageStr = Math.floor(diffYr) + ' ani';
-    else ageStr = Math.round(diffYr * 12) + ' luni';
-  }
+  // Mapeaz&#x103; sex → gender enum
+  const genderMap = { 'Mascul': 'male', 'Femel&#x103;': 'female', 'Femela': 'female', 'male': 'male', 'female': 'female' };
+  const gender = genderMap[sexRaw] || 'unknown';
 
-  const newId = Math.max(0, ...animals.map(a => a.id)) + 1;
-  const newAnimal = {
-    id: newId,
+  const dto = {
     name,
-    species,
-    breed,
-    sex,
-    owner: ownerName,
-    ownerId: client.id,
-    age: ageStr,
-    weight: weightRaw ? weightRaw + ' kg' : '&#x2192;',
-    microchip: microchip || '&#x2192;',
-    lastConsult: '&#x2192;'
+    speciesId,
+    gender,
+    ...(birth      ? { dateOfBirth: birth }   : {}),
+    ...(weightRaw  ? { weightKg: weightRaw }   : {}),
+    ...(microchip  ? { chipNumber: microchip } : {}),
   };
 
+  // Dezactiveaz&#x103; butonul save
+  const saveBtn = document.querySelector('#modal-addAnimal button[onclick*="saveDemoAnimal"]');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Se salveaz&#x103;...'; }
+
+  const result = await apiRequest('POST', `/owners/${client.id}/pets`, dto);
+
+  if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Salveaz&#x103; animalul'; }
+
+  if (!result.ok) {
+    showToast('&#x21a;&#xfe0f; ' + result.message);
+    return;
+  }
+
+  const ownerName = `${client.firstName} ${client.lastName}`.trim();
+  const newAnimal = petToAnimal({ ...result.data, ownerId: client.id }, ownerName);
   animals.push(newAnimal);
-  // Actualizeaz&#x103; contorul de animale al clientului
   client.animals = (client.animals || 0) + 1;
   renderAnimals(animals);
   renderClients(clients);
@@ -2087,16 +2323,15 @@ function saveDemoAnimal() {
       document.getElementById('modal-clientDetails').style.display = 'flex';
       _renderClientDetails(c);
     }
-    showToast(`&#x2713; Animal "${name}" ad&#x103;ugat pentru ${ownerName}!`);
+    showToast(`&#x2713;&#xfe0f; Animal &ldquo;${name}&rdquo; ad&#x103;ugat pentru ${ownerName}!`);
   } else if (_addAnimalReturnTo === 'appointment') {
     document.getElementById('modal-addAppointment').style.display = 'flex';
     populateApptAnimalSelector();
-    // Pre-selecteaz&#x103; noul animal (selector foloseste name ca valoare)
     const sel = document.getElementById('appt-animal');
     if (sel) sel.value = name;
-    showToast(`&#x2713; Animal "${name}" ad&#x103;ugat &#x219;i selectat în programare!`);
+    showToast(`&#x2713;&#xfe0f; Animal &ldquo;${name}&rdquo; ad&#x103;ugat &#x219;i selectat în programare!`);
   } else {
-    showToast(`&#x2713; Animal "${name}" salvat pentru ${ownerName}!`);
+    showToast(`&#x2713;&#xfe0f; Animal &ldquo;${name}&rdquo; salvat pentru ${ownerName}!`);
   }
   _addAnimalReturnTo = null;
 }
@@ -2234,7 +2469,7 @@ function _renderClientDetails(c) {
     ? ownedAnimals.map(a => `
         <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#fdf8f2;border-radius:8px;cursor:pointer;transition:background .15s;"
              onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#f8fafc'"
-             onclick="hideModal();showAnimalProfile(${a.id})">
+             onclick="hideModal();showAnimalProfile('${a.id}')">
           <span style="font-size:20px;">${a.species === 'Câine' ? '&#x1F43E;.' : '&#x1F43E;^'}</span>
           <div style="flex:1;">
             <span style="font-weight:500;">${a.name}</span>

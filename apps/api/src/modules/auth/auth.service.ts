@@ -62,21 +62,24 @@ export class AuthService {
 
   private issueTokens(id: string, email: string, role: UserRole): AuthTokens {
     const payload: Omit<JwtPayload, 'iat' | 'exp'> = { sub: id, email, role };
+    // parseInt ensures env strings like "900" are treated as seconds (not ms by jsonwebtoken)
+    const accessExpiresIn  = parseInt(this.config.get('JWT_EXPIRES_IN',  '900'),   10);
+    const refreshExpiresIn = parseInt(this.config.get('JWT_REFRESH_EXPIRES_IN', '604800'), 10);
 
     const accessToken = this.jwtService.sign(payload, {
       secret: this.config.getOrThrow<string>('JWT_SECRET'),
-      expiresIn: this.config.get<number>('JWT_EXPIRES_IN', 900),
+      expiresIn: accessExpiresIn,
     });
 
     const refreshToken = this.jwtService.sign(payload, {
       secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
-      expiresIn: this.config.get<number>('JWT_REFRESH_EXPIRES_IN', 604800),
+      expiresIn: refreshExpiresIn,
     });
 
     return {
       accessToken,
       refreshToken,
-      expiresIn: this.config.get<number>('JWT_EXPIRES_IN', 900),
+      expiresIn: accessExpiresIn,
     };
   }
 }

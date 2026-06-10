@@ -21,7 +21,7 @@ const ACCOUNTING_ROLES = [UserRole.ADMIN, UserRole.ACCOUNTANT] as const;
 export class ReportsController {
   constructor(
     private readonly reportsService:   ReportsService,
-    private readonly accountingExport: AccountingExportService,
+    private readonly accountingExportService: AccountingExportService,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -116,12 +116,12 @@ export class ReportsController {
   ) {
     if (!dateFrom || !dateTo) throw new BadRequestException('dateFrom și dateTo sunt obligatorii');
 
-    const invoiceRows = await this.accountingExport.getInvoiceRows(dateFrom, dateTo);
-    const paymentRows = await this.accountingExport.getPaymentRows(dateFrom, dateTo);
+    const invoiceRows = await this.accountingExportService.getInvoiceRows(dateFrom, dateTo);
+    const paymentRows = await this.accountingExportService.getPaymentRows(dateFrom, dateTo);
     const slug        = `${dateFrom}_${dateTo}`;
 
     if (format === ExportFormat.CSV) {
-      const csv = this.accountingExport.exportToCsv(invoiceRows);
+      const csv = this.accountingExportService.exportToCsv(invoiceRows);
       res.set({
         'Content-Type':        'text/csv; charset=utf-8',
         'Content-Disposition': `attachment; filename="jurnal_vanzari_${slug}.csv"`,
@@ -130,7 +130,7 @@ export class ReportsController {
     }
 
     // XLSX (default)
-    const buffer = await this.accountingExport.exportToXlsx(invoiceRows, paymentRows, dateFrom, dateTo);
+    const buffer = await this.accountingExportService.exportToXlsx(invoiceRows, paymentRows, dateFrom, dateTo);
     res.set({
       'Content-Type':        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'Content-Disposition': `attachment; filename="contabilitate_${slug}.xlsx"`,
@@ -147,8 +147,8 @@ export class ReportsController {
     @Res() res: Response,
   ) {
     if (!dateFrom || !dateTo) throw new BadRequestException('dateFrom și dateTo sunt obligatorii');
-    const rows = await this.accountingExport.getPaymentRows(dateFrom, dateTo);
-    const csv  = this.accountingExport.exportPaymentsToCsv(rows);
+    const rows = await this.accountingExportService.getPaymentRows(dateFrom, dateTo);
+    const csv  = this.accountingExportService.exportPaymentsToCsv(rows);
     res.set({
       'Content-Type':        'text/csv; charset=utf-8',
       'Content-Disposition': `attachment; filename="incasari_${dateFrom}_${dateTo}.csv"`,

@@ -19,8 +19,15 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
+  // În development acceptăm origini multiple (live-server, file://, Cloudflare preview).
+  // În production APP_URL trebuie setat la domeniul exact.
+  const isDev = (process.env.NODE_ENV ?? 'development') !== 'production';
+  const allowedOrigin = process.env.APP_URL ?? 'http://localhost:3000';
+
   app.enableCors({
-    origin:      process.env.APP_URL ?? 'http://localhost:3000',
+    origin: isDev
+      ? (origin: string | undefined, cb: (err: null, ok: boolean) => void) => cb(null, true)
+      : allowedOrigin,
     credentials: true,
   });
 

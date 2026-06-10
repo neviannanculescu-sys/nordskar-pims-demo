@@ -1469,8 +1469,8 @@ function renderConsultations() {
 }
 
 // ---- FACTURI ----
-const spvStyle  = { accepted:'background:#dcfce7;color:#166534;', processing:'background:#dbeafe;color:#6b4228;', rejected:'background:#fee2e2;color:#dc2626;', '→"':'background:#fdf3e3;color:#6b4a2e;' };
-const spvLabel  = { accepted:'✓" Acceptat', processing:'⏳ Procesare', rejected:'✓. Respins', '→"':'→"' };
+const spvStyle  = { accepted:'background:#dcfce7;color:#166534;', processing:'background:#dbeafe;color:#6b4228;', rejected:'background:#fee2e2;color:#dc2626;', none:'background:#fdf3e3;color:#6b4a2e;' };
+const spvLabel  = { accepted:'✓ Acceptat', processing:'⏳ Procesare', rejected:'✗ Respins', none:'–' };
 const payStyle  = { paid:'background:#dcfce7;color:#166534;', partially_paid:'background:#ffedd5;color:#9a3412;', issued:'background:#dbeafe;color:#6b4228;', draft:'background:#fdf3e3;color:#6b4a2e;' };
 const payLabel  = { paid:'Plătită', partially_paid:'Parțial plătită', issued:'Emisă', draft:'Ciornă' };
 
@@ -2155,8 +2155,8 @@ function showInvoiceDetails(number) {
       <div style="font-size:15px;font-weight:700;margin-top:4px;">Total: ${total.toFixed(2).replace('.',',')} RON</div>
     </div>`;
 
-  const spvColors = { accepted:'background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;', processing:'background:#fdf3dc;border:1px solid #bfdbfe;color:#6b4228;', rejected:'background:#fff1f2;border:1px solid #fecdd3;color:#be123c;', '→"':'background:#fdf8f2;border:1px solid #e8d5b7;color:#6b4a2e;' };
-  const spvText = { accepted:'✓" Acceptat de ANAF →" factura este conformă.', processing:'⏳ Factura este în procesare la ANAF e-Factura.', rejected:'✓. Factura a fost respinsă. Verificați erorile SPV.', '→"':'Factură ciornă →" nesubmisă la ANAF.' };
+  const spvColors = { accepted:'background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;', processing:'background:#fdf3dc;border:1px solid #bfdbfe;color:#6b4228;', rejected:'background:#fff1f2;border:1px solid #fecdd3;color:#be123c;', none:'background:#fdf8f2;border:1px solid #e8d5b7;color:#6b4a2e;' };
+  const spvText = { accepted:'✓ Acceptat de ANAF – factura este conformă.', processing:'⏳ Factura este în procesare la ANAF e-Factura.', rejected:'✗ Factura a fost respinsă. Verificați erorile SPV.', none:'Factură ciornă – nesubmisă la ANAF.' };
   document.getElementById('inv-detail-spv').style.cssText = spvColors[inv.spv];
   document.getElementById('inv-detail-spv').textContent = spvText[inv.spv];
 

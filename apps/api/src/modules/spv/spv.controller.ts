@@ -1,13 +1,15 @@
 import {
   Controller, Get, Post, Param, ParseUUIDPipe,
-  UseGuards, HttpCode, HttpStatus,
+  UseGuards, HttpCode, HttpStatus, Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { JwtAuthGuard }  from '../auth/guards/jwt-auth.guard';
 import { RolesGuard }    from '../auth/guards/roles.guard';
 import { Roles }         from '../auth/decorators/roles.decorator';
 import { CurrentUser }   from '../auth/decorators/current-user.decorator';
 import { UserRole }      from '../../database/schema';
 import { AuditContext }  from '../../common/helpers/audit.helper';
+import { RequestUser }   from '../../common/types/jwt.types';
 import { SpvService }    from './spv.service';
 
 // Doar ADMIN și ACCOUNTANT interacționează cu ANAF/SPV
@@ -40,9 +42,11 @@ export class SpvController {
   @HttpCode(HttpStatus.CREATED)
   submit(
     @Param('invoiceId', ParseUUIDPipe) invoiceId: string,
-    @CurrentUser() user: AuditContext,
+    @CurrentUser() user: RequestUser,
+    @Req() req: Request,
   ) {
-    return this.spvService.submit(invoiceId, user);
+    const ctx: AuditContext = { userId: user.id, ip: req.ip };
+    return this.spvService.submit(invoiceId, ctx);
   }
 
   // Polling manual status ANAF pentru o submission
@@ -50,9 +54,11 @@ export class SpvController {
   @Roles(...SPV_ROLES)
   pollStatus(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: AuditContext,
+    @CurrentUser() user: RequestUser,
+    @Req() req: Request,
   ) {
-    return this.spvService.pollStatus(id, user);
+    const ctx: AuditContext = { userId: user.id, ip: req.ip };
+    return this.spvService.pollStatus(id, ctx);
   }
 
   // Vizualizare submission + toate răspunsurile ANAF

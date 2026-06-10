@@ -1,7 +1,8 @@
 import {
-  Controller, Get, Post, Patch, Param, Body, Query,
+  Controller, Get, Post, Patch, Param, Body, Query, Req,
   ParseUUIDPipe, UseGuards, HttpCode, HttpStatus,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { JwtAuthGuard }  from '../auth/guards/jwt-auth.guard';
 import { RolesGuard }    from '../auth/guards/roles.guard';
 import { Roles }         from '../auth/decorators/roles.decorator';
@@ -9,6 +10,7 @@ import { CurrentUser }   from '../auth/decorators/current-user.decorator';
 import { UserRole }      from '../../database/schema';
 import { MEDICAL_ROLES } from '../../common/constants/roles.constants';
 import { AuditContext }  from '../../common/helpers/audit.helper';
+import { RequestUser }   from '../../common/types/jwt.types';
 import { CatalogService } from './catalog.service';
 import { CreatePriceCatalogDto }      from './dto/create-price-catalog.dto';
 import { CreateProcedureTemplateDto } from './dto/create-procedure-template.dto';
@@ -69,9 +71,11 @@ export class CatalogController {
   @HttpCode(HttpStatus.CREATED)
   createPrice(
     @Body() dto: CreatePriceCatalogDto,
-    @CurrentUser() user: AuditContext,
+    @CurrentUser() user: RequestUser,
+    @Req() req: Request,
   ) {
-    return this.catalogService.createPrice(dto, user);
+    const ctx: AuditContext = { userId: user.id, ip: req.ip };
+    return this.catalogService.createPrice(dto, ctx);
   }
 
   @Patch('prices/:id')
@@ -79,9 +83,11 @@ export class CatalogController {
   updatePrice(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdatePriceCatalogDto,
-    @CurrentUser() user: AuditContext,
+    @CurrentUser() user: RequestUser,
+    @Req() req: Request,
   ) {
-    return this.catalogService.updatePrice(id, dto, user);
+    const ctx: AuditContext = { userId: user.id, ip: req.ip };
+    return this.catalogService.updatePrice(id, dto, ctx);
   }
 
   // ---------------------------------------------------------------------------
@@ -111,9 +117,11 @@ export class CatalogController {
   @HttpCode(HttpStatus.CREATED)
   createTemplate(
     @Body() dto: CreateProcedureTemplateDto,
-    @CurrentUser() user: AuditContext,
+    @CurrentUser() user: RequestUser,
+    @Req() req: Request,
   ) {
-    return this.catalogService.createTemplate(dto, user);
+    const ctx: AuditContext = { userId: user.id, ip: req.ip };
+    return this.catalogService.createTemplate(dto, ctx);
   }
 
   @Patch('templates/:id')
@@ -121,8 +129,10 @@ export class CatalogController {
   updateTemplate(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateProcedureTemplateDto,
-    @CurrentUser() user: AuditContext,
+    @CurrentUser() user: RequestUser,
+    @Req() req: Request,
   ) {
-    return this.catalogService.updateTemplate(id, dto, user);
+    const ctx: AuditContext = { userId: user.id, ip: req.ip };
+    return this.catalogService.updateTemplate(id, dto, ctx);
   }
 }

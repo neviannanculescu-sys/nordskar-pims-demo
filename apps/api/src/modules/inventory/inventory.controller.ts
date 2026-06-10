@@ -1,7 +1,8 @@
 import {
-  Controller, Get, Post, Patch, Delete, Param, Body, Query,
+  Controller, Get, Post, Patch, Delete, Param, Body, Query, Req,
   ParseUUIDPipe, UseGuards, HttpCode, HttpStatus,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { JwtAuthGuard }  from '../auth/guards/jwt-auth.guard';
 import { RolesGuard }    from '../auth/guards/roles.guard';
 import { Roles }         from '../auth/decorators/roles.decorator';
@@ -9,6 +10,7 @@ import { CurrentUser }   from '../auth/decorators/current-user.decorator';
 import { UserRole }      from '../../database/schema';
 import { MEDICAL_ROLES } from '../../common/constants/roles.constants';
 import { AuditContext }  from '../../common/helpers/audit.helper';
+import { RequestUser }   from '../../common/types/jwt.types';
 import { InventoryService }         from './inventory.service';
 import { CreateInventoryItemDto }   from './dto/create-inventory-item.dto';
 import { CreateStockMovementDto }   from './dto/create-stock-movement.dto';
@@ -56,9 +58,11 @@ export class InventoryController {
   @HttpCode(HttpStatus.CREATED)
   createItem(
     @Body() dto: CreateInventoryItemDto,
-    @CurrentUser() user: AuditContext,
+    @CurrentUser() user: RequestUser,
+    @Req() req: Request,
   ) {
-    return this.inventoryService.createItem(dto, user);
+    const ctx: AuditContext = { userId: user.id, ip: req.ip };
+    return this.inventoryService.createItem(dto, ctx);
   }
 
   @Patch('items/:id')
@@ -66,9 +70,11 @@ export class InventoryController {
   updateItem(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateInventoryItemDto,
-    @CurrentUser() user: AuditContext,
+    @CurrentUser() user: RequestUser,
+    @Req() req: Request,
   ) {
-    return this.inventoryService.updateItem(id, dto as any, user);
+    const ctx: AuditContext = { userId: user.id, ip: req.ip };
+    return this.inventoryService.updateItem(id, dto as any, ctx);
   }
 
   @Delete('items/:id')
@@ -76,9 +82,11 @@ export class InventoryController {
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteItem(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: AuditContext,
+    @CurrentUser() user: RequestUser,
+    @Req() req: Request,
   ) {
-    return this.inventoryService.softDeleteItem(id, user);
+    const ctx: AuditContext = { userId: user.id, ip: req.ip };
+    return this.inventoryService.softDeleteItem(id, ctx);
   }
 
   // ---------------------------------------------------------------------------
@@ -99,9 +107,11 @@ export class InventoryController {
   @HttpCode(HttpStatus.CREATED)
   addMovement(
     @Body() dto: CreateStockMovementDto,
-    @CurrentUser() user: AuditContext,
+    @CurrentUser() user: RequestUser,
+    @Req() req: Request,
   ) {
-    return this.inventoryService.addMovement(dto, user);
+    const ctx: AuditContext = { userId: user.id, ip: req.ip };
+    return this.inventoryService.addMovement(dto, ctx);
   }
 
   // ---------------------------------------------------------------------------

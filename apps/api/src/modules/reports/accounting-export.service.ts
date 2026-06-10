@@ -15,7 +15,7 @@ import { DRIZZLE_DB, DrizzleDB } from '../../database/database.module';
 //   acces restricționat la ADMIN + ACCOUNTANT.
 // ---------------------------------------------------------------------------
 
-interface AccountingRow {
+export interface AccountingRow {
   docDate:         string;
   docNumber:       string;
   customerVatId:   string;
@@ -31,7 +31,7 @@ interface AccountingRow {
   journalPrefix:   string;
 }
 
-interface PaymentRow {
+export interface PaymentRow {
   docDate:       string;
   invoiceNumber: string;
   customerName:  string;
@@ -270,5 +270,324 @@ export class AccountingExportService {
     wsMeta.addRow(['Notă:', 'Verificați cu contabilul înainte de import în Saga/WinMentor.']);
 
     return wb.xlsx.writeBuffer() as unknown as Promise<Buffer>;
+  }
+
+  // -------------------------------------------------------------------------
+  // Jurnal casă — plăți cash în perioadă
+  // -------------------------------------------------------------------------
+
+  async getCashJournal(dateFrom: string, dateTo: string): Promise<PaymentRow[]> {
+    const rows = await this.db.execute<Record<string, string>>(sql`
+      SELECT
+        p.paid_at::DATE::TEXT              AS doc_date,
+        i.invoice_number,
+        COALESCE(i.billing_name, '')       AS customer_name,
+        p.amount::TEXT                     AS amount,
+        p.payment_method,
+        p.reference
+      FROM payments p
+      JOIN invoices i ON i.id = p.invoice_id
+      WHERE p.paid_at::DATE BETWEEN ${dateFrom} AND ${dateTo}
+        AND p.payment_method = 'cash'
+      ORDER BY p.paid_at ASC
+    `);
+    return rows.rows.map((r) => ({
+      docDate:       r['doc_date']       ?? '',
+      invoiceNumber: r['invoice_number'] ?? '',
+      customerName:  r['customer_name']  ?? '',
+      amount:        parseFloat(r['amount'] ?? '0'),
+      method:        r['payment_method'] ?? '',
+      reference:     r['reference']      ?? null,
+    }));
+  }
+
+  // -------------------------------------------------------------------------
+  // Jurnal bancă — plăți card + transfer bancar în perioadă
+  // -------------------------------------------------------------------------
+
+  async getBankJournal(dateFrom: string, dateTo: string): Promise<PaymentRow[]> {
+    const rows = await this.db.execute<Record<string, string>>(sql`
+      SELECT
+        p.paid_at::DATE::TEXT              AS doc_date,
+        i.invoice_number,
+        COALESCE(i.billing_name, '')       AS customer_name,
+        p.amount::TEXT                     AS amount,
+        p.payment_method,
+        p.reference
+      FROM payments p
+      JOIN invoices i ON i.id = p.invoice_id
+      WHERE p.paid_at::DATE BETWEEN ${dateFrom} AND ${dateTo}
+        AND p.payment_method IN ('card', 'bank_transfer', 'voucher', 'other')
+      ORDER BY p.paid_at ASC
+    `);
+    return rows.rows.map((r) => ({
+      docDate:       r['doc_date']       ?? '',
+      invoiceNumber: r['invoice_number'] ?? '',
+      customerName:  r['customer_name']  ?? '',
+      amount:        parseFloat(r['amount'] ?? '0'),
+      method:        r['payment_method'] ?? '',
+      reference:     r['reference']      ?? null,
+    }));
+  }
+
+  // -------------------------------------------------------------------------
+  // Registru cumpărări — recepții de marfă din stock_movements
+  // -------------------------------------------------------------------------
+
+  async getPurchaseRegistry(dateFrom: string, dateTo: string) {
+    const rows = await this.db.execute<{
+      performed_at: string; item_name: string; item_sku: string;
+      category: string; quantity: string; unit_cost: string | null;
+      line_total: string | null; lot_number: string | null;
+      expiry_date: string | null; performed_by_name: string;
+    }>(sql`
+      SELECT
+        sm.performed_at::DATE::TEXT                                AS performed_at,
+        ii.name                                                    AS item_name,
+        ii.sku                                                     AS item_sku,
+        ii.category::TEXT                                          AS category,
+        sm.quantity::TEXT,
+        sm.unit_cost::TEXT,
+        (sm.quantity::NUMERIC * COALESCE(sm.unit_cost::NUMERIC,0))::TEXT AS line_total,
+        sm.lot_number,
+        sm.expiry_date::TEXT,
+        COALESCE(u.first_name || ' ' || u.last_name, 'System')    AS performed_by_name
+      FROM stock_movements sm
+      JOIN inventory_items ii ON ii.id = sm.inventory_item_id
+      LEFT JOIN users u ON u.id = sm.performed_by
+      WHERE sm.movement_type = 'purchase_receipt'
+        AND sm.performed_at::DATE BETWEEN ${dateFrom} AND ${dateTo}
+        AND ii.deleted_at IS NULL
+      ORDER BY sm.performed_at ASC
+    `);
+
+    return rows.rows.map((r) => ({
+      performedAt:   r.performed_at,
+      itemName:      r.item_name,
+      itemSku:       r.item_sku,
+      category:      r.category,
+      quantity:      parseFloat(r.quantity   ?? '0'),
+      unitCost:      r.unit_cost ? parseFloat(r.unit_cost) : null,
+      lineTotal:     r.line_total ? parseFloat(r.line_total) : 0,
+      lotNumber:     r.lot_number  ?? null,
+      expiryDate:    r.expiry_date ?? null,
+      performedBy:   r.performed_by_name,
+    }));
+  }
+
+  // -------------------------------------------------------------------------
+  // Reconciliere — sumar TVA + discrepanțe
+  // -------------------------------------------------------------------------
+
+  async getReconciliationSummary(dateFrom: string, dateTo: string) {
+    const today = new Date().toISOString().slice(0, 10);
+
+    const [vatRows, overdueRows, b2bNoSpvRows, b2bSpvBadRows, paymentSummaryRows] = await Promise.all([
+      // TVA colectată pe cote
+      this.db.execute<{
+        vat_rate: string; base_total: string; vat_total: string; invoice_count: string;
+      }>(sql`
+        SELECT
+          il.vat_rate::TEXT,
+          SUM(il.line_total)::TEXT  AS base_total,
+          SUM(il.vat_amount)::TEXT  AS vat_total,
+          COUNT(DISTINCT i.id)::TEXT AS invoice_count
+        FROM invoice_lines il
+        JOIN invoices i ON i.id = il.invoice_id
+        WHERE i.deleted_at IS NULL
+          AND i.status NOT IN ('draft','cancelled','storno')
+          AND i.issued_at::DATE BETWEEN ${dateFrom} AND ${dateTo}
+        GROUP BY il.vat_rate
+        ORDER BY il.vat_rate ASC
+      `),
+
+      // Facturi emise scadente neîncasate complet
+      this.db.execute<{
+        invoice_id: string; invoice_number: string; billing_name: string;
+        billing_cui: string | null; issued_at: string; due_date: string | null;
+        total_amount: string; paid_amount: string; outstanding: string; days_overdue: string;
+      }>(sql`
+        SELECT
+          i.id           AS invoice_id,
+          i.invoice_number,
+          COALESCE(i.billing_name, 'Necunoscut') AS billing_name,
+          i.billing_cui,
+          i.issued_at::DATE::TEXT                AS issued_at,
+          i.due_date::TEXT,
+          i.total_amount::TEXT,
+          i.paid_amount::TEXT,
+          (i.total_amount - i.paid_amount)::TEXT AS outstanding,
+          GREATEST(0, EXTRACT(DAY FROM NOW() - i.due_date::TIMESTAMP))::TEXT AS days_overdue
+        FROM invoices i
+        WHERE i.deleted_at IS NULL
+          AND i.status IN ('issued','partially_paid')
+          AND i.issued_at::DATE BETWEEN ${dateFrom} AND ${dateTo}
+        ORDER BY i.due_date ASC NULLS LAST, i.issued_at ASC
+      `),
+
+      // B2B fără nicio submission SPV (au CUI dar nu sunt în spv_submissions)
+      this.db.execute<{
+        invoice_id: string; invoice_number: string; billing_name: string;
+        billing_cui: string; issued_at: string; total_amount: string;
+      }>(sql`
+        SELECT
+          i.id           AS invoice_id,
+          i.invoice_number,
+          i.billing_name,
+          i.billing_cui,
+          i.issued_at::DATE::TEXT AS issued_at,
+          i.total_amount::TEXT
+        FROM invoices i
+        WHERE i.deleted_at IS NULL
+          AND i.status NOT IN ('draft','cancelled','storno')
+          AND i.billing_cui IS NOT NULL AND i.billing_cui != ''
+          AND i.issued_at::DATE BETWEEN ${dateFrom} AND ${dateTo}
+          AND NOT EXISTS (
+            SELECT 1 FROM spv_submissions ss
+            WHERE ss.invoice_id = i.id
+          )
+        ORDER BY i.issued_at ASC
+      `),
+
+      // B2B cu submission SPV în stare rejected / error
+      this.db.execute<{
+        invoice_id: string; invoice_number: string; billing_name: string;
+        billing_cui: string; issued_at: string; total_amount: string;
+        spv_status: string; error_message: string | null;
+      }>(sql`
+        SELECT
+          i.id           AS invoice_id,
+          i.invoice_number,
+          i.billing_name,
+          i.billing_cui,
+          i.issued_at::DATE::TEXT AS issued_at,
+          i.total_amount::TEXT,
+          ss.status      AS spv_status,
+          ss.error_message
+        FROM invoices i
+        JOIN spv_submissions ss ON ss.invoice_id = i.id
+        WHERE i.deleted_at IS NULL
+          AND i.issued_at::DATE BETWEEN ${dateFrom} AND ${dateTo}
+          AND ss.status IN ('rejected','error')
+        ORDER BY i.issued_at ASC
+      `),
+
+      // Sumar încasări pe metode în perioadă
+      this.db.execute<{
+        payment_method: string; total_amount: string; payment_count: string;
+      }>(sql`
+        SELECT
+          p.payment_method,
+          SUM(p.amount)::TEXT  AS total_amount,
+          COUNT(*)::TEXT        AS payment_count
+        FROM payments p
+        JOIN invoices i ON i.id = p.invoice_id
+        WHERE p.paid_at::DATE BETWEEN ${dateFrom} AND ${dateTo}
+          AND i.deleted_at IS NULL
+        GROUP BY p.payment_method
+        ORDER BY SUM(p.amount) DESC
+      `),
+    ]);
+
+    // Totale
+    const vatSummary = vatRows.rows.map((r) => ({
+      vatRate:      parseInt(r.vat_rate ?? '0', 10),
+      baseTotal:    parseFloat(r.base_total   ?? '0'),
+      vatTotal:     parseFloat(r.vat_total    ?? '0'),
+      invoiceCount: parseInt(r.invoice_count  ?? '0', 10),
+    }));
+    const totalVat       = vatSummary.reduce((s, r) => s + r.vatTotal, 0);
+    const totalBase      = vatSummary.reduce((s, r) => s + r.baseTotal, 0);
+    const outstandingList = overdueRows.rows.map((r) => ({
+      invoiceId:     r.invoice_id,
+      invoiceNumber: r.invoice_number,
+      billingName:   r.billing_name,
+      billingCui:    r.billing_cui ?? null,
+      issuedAt:      r.issued_at,
+      dueDate:       r.due_date ?? null,
+      totalAmount:   parseFloat(r.total_amount ?? '0'),
+      paidAmount:    parseFloat(r.paid_amount  ?? '0'),
+      outstanding:   parseFloat(r.outstanding  ?? '0'),
+      daysOverdue:   parseInt(r.days_overdue   ?? '0', 10),
+    }));
+    const totalOutstanding = outstandingList.reduce((s, r) => s + r.outstanding, 0);
+    const totalPaid        = outstandingList.reduce((s, r) => s + r.paidAmount, 0);
+
+    return {
+      period:   { from: dateFrom, to: dateTo },
+      summary: {
+        totalBase:         +totalBase.toFixed(2),
+        totalVatCollected: +totalVat.toFixed(2),
+        totalOutstanding:  +totalOutstanding.toFixed(2),
+        vatByRate:         vatSummary,
+        paymentsByMethod:  paymentSummaryRows.rows.map((r) => ({
+          method:  r.payment_method,
+          total:   parseFloat(r.total_amount   ?? '0'),
+          count:   parseInt(r.payment_count    ?? '0', 10),
+        })),
+      },
+      discrepancies: {
+        unpaidInvoices:  outstandingList,
+        b2bWithoutSpv:   b2bNoSpvRows.rows.map((r) => ({
+          invoiceId:     r.invoice_id,
+          invoiceNumber: r.invoice_number,
+          billingName:   r.billing_name,
+          billingCui:    r.billing_cui,
+          issuedAt:      r.issued_at,
+          totalAmount:   parseFloat(r.total_amount ?? '0'),
+          issue:         'Fără submission SPV',
+        })),
+        b2bSpvRejected:  b2bSpvBadRows.rows.map((r) => ({
+          invoiceId:     r.invoice_id,
+          invoiceNumber: r.invoice_number,
+          billingName:   r.billing_name,
+          billingCui:    r.billing_cui,
+          issuedAt:      r.issued_at,
+          totalAmount:   parseFloat(r.total_amount ?? '0'),
+          spvStatus:     r.spv_status,
+          errorMessage:  r.error_message ?? null,
+          issue:         `SPV ${r.spv_status}`,
+        })),
+      },
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // CSV exporters pentru registre noi
+  // -------------------------------------------------------------------------
+
+  exportPaymentJournalToCsv(rows: PaymentRow[], label: string): string {
+    const header = ['Data', 'Nr. Factură', 'Client', 'Sumă', 'Metodă', 'Referință', 'Jurnal'].join(';');
+    const csvRows = rows.map((r) =>
+      [
+        r.docDate,
+        r.invoiceNumber,
+        `"${r.customerName.replace(/"/g, '""')}"`,
+        r.amount.toFixed(2).replace('.', ','),
+        r.method,
+        r.reference ?? '',
+        label,
+      ].join(';'),
+    );
+    return '﻿' + [header, ...csvRows].join('\r\n');
+  }
+
+  exportPurchasesToCsv(rows: Awaited<ReturnType<typeof this.getPurchaseRegistry>>): string {
+    const header = ['Data', 'Produs', 'SKU', 'Categorie', 'Cantitate', 'Cost unitar', 'Total', 'Lot', 'Expirare', 'Recepționat de'].join(';');
+    const csvRows = rows.map((r) =>
+      [
+        r.performedAt,
+        `"${r.itemName.replace(/"/g, '""')}"`,
+        r.itemSku,
+        r.category,
+        r.quantity.toFixed(3).replace('.', ','),
+        (r.unitCost ?? 0).toFixed(2).replace('.', ','),
+        r.lineTotal.toFixed(2).replace('.', ','),
+        r.lotNumber ?? '',
+        r.expiryDate ?? '',
+        `"${r.performedBy.replace(/"/g, '""')}"`,
+      ].join(';'),
+    );
+    return '﻿' + [header, ...csvRows].join('\r\n');
   }
 }

@@ -139,6 +139,10 @@ export class ReportsController {
       return res.send(csv);
     }
 
+    if ((format as string) === 'json') {
+      return res.json(invoiceRows);
+    }
+
     // XLSX (default)
     const buffer = await this.accountingExportService.exportToXlsx(invoiceRows, paymentRows, dateFrom, dateTo);
     res.set({
@@ -164,5 +168,94 @@ export class ReportsController {
       'Content-Disposition': `attachment; filename="incasari_${dateFrom}_${dateTo}.csv"`,
     });
     return res.send(csv);
+  }
+
+  // -------------------------------------------------------------------------
+  // Jurnal casă (numerar)
+  // -------------------------------------------------------------------------
+
+  @Get('accounting/exports/cash')
+  @Roles(...ACCOUNTING_ROLES)
+  async cashJournalExport(
+    @Query('dateFrom') dateFrom: string,
+    @Query('dateTo')   dateTo:   string,
+    @Query('format')   format:   string = 'json',
+    @Res() res: Response,
+  ) {
+    if (!dateFrom || !dateTo) throw new BadRequestException('dateFrom și dateTo sunt obligatorii');
+    const rows = await this.accountingExportService.getCashJournal(dateFrom, dateTo);
+    if (format === 'csv') {
+      const csv = this.accountingExportService.exportPaymentJournalToCsv(rows, 'CASA');
+      res.set({
+        'Content-Type':        'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="jurnal_casa_${dateFrom}_${dateTo}.csv"`,
+      });
+      return res.send(csv);
+    }
+    return res.json(rows);
+  }
+
+  // -------------------------------------------------------------------------
+  // Jurnal bancă (card + transfer)
+  // -------------------------------------------------------------------------
+
+  @Get('accounting/exports/bank')
+  @Roles(...ACCOUNTING_ROLES)
+  async bankJournalExport(
+    @Query('dateFrom') dateFrom: string,
+    @Query('dateTo')   dateTo:   string,
+    @Query('format')   format:   string = 'json',
+    @Res() res: Response,
+  ) {
+    if (!dateFrom || !dateTo) throw new BadRequestException('dateFrom și dateTo sunt obligatorii');
+    const rows = await this.accountingExportService.getBankJournal(dateFrom, dateTo);
+    if (format === 'csv') {
+      const csv = this.accountingExportService.exportPaymentJournalToCsv(rows, 'BANCA');
+      res.set({
+        'Content-Type':        'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="jurnal_banca_${dateFrom}_${dateTo}.csv"`,
+      });
+      return res.send(csv);
+    }
+    return res.json(rows);
+  }
+
+  // -------------------------------------------------------------------------
+  // Registru cumpărări
+  // -------------------------------------------------------------------------
+
+  @Get('accounting/exports/purchases')
+  @Roles(...ACCOUNTING_ROLES)
+  async purchasesExport(
+    @Query('dateFrom') dateFrom: string,
+    @Query('dateTo')   dateTo:   string,
+    @Query('format')   format:   string = 'json',
+    @Res() res: Response,
+  ) {
+    if (!dateFrom || !dateTo) throw new BadRequestException('dateFrom și dateTo sunt obligatorii');
+    const rows = await this.accountingExportService.getPurchaseRegistry(dateFrom, dateTo);
+    if (format === 'csv') {
+      const csv = this.accountingExportService.exportPurchasesToCsv(rows);
+      res.set({
+        'Content-Type':        'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="registru_cumparari_${dateFrom}_${dateTo}.csv"`,
+      });
+      return res.send(csv);
+    }
+    return res.json(rows);
+  }
+
+  // -------------------------------------------------------------------------
+  // Reconciliere — sumar TVA + discrepanțe
+  // -------------------------------------------------------------------------
+
+  @Get('accounting/reconciliation')
+  @Roles(...ACCOUNTING_ROLES)
+  reconciliation(
+    @Query('dateFrom') dateFrom: string,
+    @Query('dateTo')   dateTo:   string,
+  ) {
+    if (!dateFrom || !dateTo) throw new BadRequestException('dateFrom și dateTo sunt obligatorii');
+    return this.accountingExportService.getReconciliationSummary(dateFrom, dateTo);
   }
 }

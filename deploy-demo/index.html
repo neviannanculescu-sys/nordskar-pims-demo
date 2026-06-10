@@ -101,6 +101,16 @@
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: var(--content-bg); }
     ::-webkit-scrollbar-thumb { background: var(--content-border); border-radius: 4px; }
+
+    /* ---- ACCOUNTING TABS ---- */
+    .acc-tab {
+      padding: 9px 16px; border: none; background: none; cursor: pointer;
+      font-size: 13px; font-weight: 500; color: #b89275;
+      border-bottom: 2px solid transparent; margin-bottom: -2px;
+      white-space: nowrap; transition: color .15s;
+    }
+    .acc-tab:hover  { color: #6b4a2e; }
+    .acc-tab-active { color: #9c6b30; border-bottom-color: #9c6b30; font-weight: 600; }
   </style>
 </head>
 <body style="margin:0;">
@@ -204,6 +214,10 @@
         <a onclick="nav('unbilled')" class="sidebar-link" id="nav-unbilled">
           <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           Nefacturate <span id="nav-unbilled-badge" style="display:none;background:#ea580c;color:white;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;">0</span>
+        </a>
+        <a onclick="nav('accounting')" class="sidebar-link" id="nav-accounting">
+          <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          Contabilitate
         </a>
         <a onclick="nav('stock')" class="sidebar-link" id="nav-stock">
           <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7"/></svg>
@@ -511,6 +525,127 @@
             </table>
           </div>
         </div>
+
+        <!-- ==================== CONTABILITATE ==================== -->
+        <div id="page-accounting" class="page">
+          <!-- Header + filtre perioadă -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+            <div>
+              <h2 style="font-size:18px;font-weight:700;color:#2d1a0a;margin:0;">Contabilitate</h2>
+              <div style="font-size:13px;color:#6b4a2e;margin-top:4px;">Registre + reconciliere · date live din baza de date</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <input type="date" id="acc-from" style="padding:7px 10px;border:1px solid #e0d0c0;border-radius:8px;font-size:13px;">
+              <span style="color:#b89275;font-size:13px;">–</span>
+              <input type="date" id="acc-to"   style="padding:7px 10px;border:1px solid #e0d0c0;border-radius:8px;font-size:13px;">
+              <button onclick="loadAccounting()" class="btn-primary" style="font-size:13px;">Încarcă</button>
+            </div>
+          </div>
+
+          <!-- KPI cards -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:20px;">
+            <div class="card" style="padding:16px;">
+              <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Facturi emise</div>
+              <div id="acc-inv-count" style="font-size:22px;font-weight:700;color:#2d1a0a;">–</div>
+              <div id="acc-inv-total" style="font-size:11px;color:#b89275;margin-top:2px;">–</div>
+            </div>
+            <div class="card" style="padding:16px;">
+              <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Bază impozabilă</div>
+              <div id="acc-base" style="font-size:22px;font-weight:700;color:#2d1a0a;">–</div>
+              <div style="font-size:11px;color:#b89275;margin-top:2px;">fără TVA</div>
+            </div>
+            <div class="card" style="padding:16px;">
+              <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">TVA colectată</div>
+              <div id="acc-vat" style="font-size:22px;font-weight:700;color:#7c3aed;">–</div>
+              <div id="acc-vat-detail" style="font-size:11px;color:#b89275;margin-top:2px;">–</div>
+            </div>
+            <div class="card" style="padding:16px;">
+              <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Sold restant</div>
+              <div id="acc-outstanding" style="font-size:22px;font-weight:700;color:#ea580c;">–</div>
+              <div id="acc-outstanding-count" style="font-size:11px;color:#b89275;margin-top:2px;">–</div>
+            </div>
+            <div class="card" style="padding:16px;">
+              <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Discrepanțe SPV</div>
+              <div id="acc-spv-issues" style="font-size:22px;font-weight:700;color:#dc2626;">–</div>
+              <div style="font-size:11px;color:#b89275;margin-top:2px;">B2B fără status valid</div>
+            </div>
+          </div>
+
+          <!-- Tab bar -->
+          <div style="display:flex;gap:0;border-bottom:2px solid #e8d8c8;margin-bottom:16px;overflow-x:auto;">
+            <button onclick="accTab('sales')"     id="acc-tab-sales"     class="acc-tab acc-tab-active">Registru vânzări</button>
+            <button onclick="accTab('purchases')" id="acc-tab-purchases" class="acc-tab">Registru cumpărări</button>
+            <button onclick="accTab('cash')"      id="acc-tab-cash"      class="acc-tab">Jurnal casă</button>
+            <button onclick="accTab('bank')"      id="acc-tab-bank"      class="acc-tab">Jurnal bancă</button>
+            <button onclick="accTab('recon')"     id="acc-tab-recon"     class="acc-tab">Reconciliere</button>
+          </div>
+
+          <!-- Tab: Registru vânzări -->
+          <div id="acc-panel-sales" class="acc-panel">
+            <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+              <button onclick="exportAccountingCsv('sales')" class="btn-secondary" style="font-size:12px;">⬇ Export CSV (Saga C)</button>
+            </div>
+            <div class="card" style="overflow:auto;">
+              <table style="width:100%;border-collapse:collapse;min-width:800px;">
+                <thead><tr style="background:#fdf8f2;">
+                  <th style="padding:9px 10px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">Data</th>
+                  <th style="padding:9px 10px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">Nr. Factură</th>
+                  <th style="padding:9px 10px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">Client</th>
+                  <th style="padding:9px 10px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">CUI/CNP</th>
+                  <th style="padding:9px 10px;text-align:right;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">Bază 9%</th>
+                  <th style="padding:9px 10px;text-align:right;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">TVA 9%</th>
+                  <th style="padding:9px 10px;text-align:right;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">Total</th>
+                  <th style="padding:9px 10px;text-align:right;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">Încasat</th>
+                  <th style="padding:9px 10px;text-align:center;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">Status</th>
+                </tr></thead>
+                <tbody id="acc-sales-body"><tr><td colspan="9" style="text-align:center;padding:32px;color:#9ca3af;">Selectați perioada și apăsați Încarcă.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Tab: Registru cumpărări -->
+          <div id="acc-panel-purchases" class="acc-panel" style="display:none;">
+            <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+              <button onclick="exportAccountingCsv('purchases')" class="btn-secondary" style="font-size:12px;">⬇ Export CSV</button>
+            </div>
+            <div class="card" style="overflow:auto;">
+              <table style="width:100%;border-collapse:collapse;min-width:700px;">
+                <thead><tr style="background:#fdf8f2;">
+                  <th style="padding:9px 10px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">Data</th>
+                  <th style="padding:9px 10px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">Produs</th>
+                  <th style="padding:9px 10px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">Categorie</th>
+                  <th style="padding:9px 10px;text-align:right;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">Cantitate</th>
+                  <th style="padding:9px 10px;text-align:right;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">Cost unit.</th>
+                  <th style="padding:9px 10px;text-align:right;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">Total</th>
+                  <th style="padding:9px 10px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">Lot</th>
+                  <th style="padding:9px 10px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">Recepționat de</th>
+                </tr></thead>
+                <tbody id="acc-purchases-body"><tr><td colspan="8" style="text-align:center;padding:32px;color:#9ca3af;">Selectați perioada și apăsați Încarcă.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Tab: Jurnal casă -->
+          <div id="acc-panel-cash" class="acc-panel" style="display:none;">
+            <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+              <button onclick="exportAccountingCsv('cash')" class="btn-secondary" style="font-size:12px;">⬇ Export CSV</button>
+            </div>
+            <div id="acc-cash-content" class="card" style="overflow:auto;"><div style="text-align:center;padding:32px;color:#9ca3af;">Selectați perioada și apăsați Încarcă.</div></div>
+          </div>
+
+          <!-- Tab: Jurnal bancă -->
+          <div id="acc-panel-bank" class="acc-panel" style="display:none;">
+            <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+              <button onclick="exportAccountingCsv('bank')" class="btn-secondary" style="font-size:12px;">⬇ Export CSV</button>
+            </div>
+            <div id="acc-bank-content" class="card" style="overflow:auto;"><div style="text-align:center;padding:32px;color:#9ca3af;">Selectați perioada și apăsați Încarcă.</div></div>
+          </div>
+
+          <!-- Tab: Reconciliere -->
+          <div id="acc-panel-recon" class="acc-panel" style="display:none;">
+            <div id="acc-recon-content"><div style="text-align:center;padding:32px;color:#9ca3af;">Selectați perioada și apăsați Încarcă.</div></div>
+          </div>
+        </div><!-- /page-accounting -->
 
         <!-- ==================== STOCURI ==================== -->
         <div id="page-stock" class="page">
@@ -3260,6 +3395,330 @@ function showToast(msg) {
 // Enter pe login
 document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 document.getElementById('loginEmail').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+// ==================== CONTABILITATE ====================
+
+const INV_STATUS_ACC = {
+  issued: 'Emisă', partially_paid: 'Parțial', paid: 'Achitată',
+  cancelled: 'Anulată', storno: 'Storno', draft: 'Draft',
+};
+const PAY_METHOD_ACC = {
+  cash: 'Numerar', card: 'Card', bank_transfer: 'Transfer',
+  voucher: 'Voucher', other: 'Altele',
+};
+
+let _accSalesData     = [];
+let _accPurchasesData = [];
+let _accCashData      = [];
+let _accBankData      = [];
+let _accReconData     = null;
+let _activeAccTab     = 'sales';
+
+// Setează luna curentă ca perioadă default
+(function initAccDates() {
+  const now   = new Date();
+  const y     = now.getFullYear();
+  const m     = String(now.getMonth() + 1).padStart(2, '0');
+  const today = now.toISOString().slice(0, 10);
+  const monthStart = `${y}-${m}-01`;
+  const el1 = document.getElementById('acc-from');
+  const el2 = document.getElementById('acc-to');
+  if (el1) el1.value = monthStart;
+  if (el2) el2.value = today;
+})();
+
+function accTab(name) {
+  _activeAccTab = name;
+  document.querySelectorAll('.acc-tab').forEach(t => t.classList.remove('acc-tab-active'));
+  document.getElementById('acc-tab-' + name).classList.add('acc-tab-active');
+  document.querySelectorAll('.acc-panel').forEach(p => p.style.display = 'none');
+  document.getElementById('acc-panel-' + name).style.display = 'block';
+}
+
+async function loadAccounting() {
+  const dateFrom = document.getElementById('acc-from')?.value;
+  const dateTo   = document.getElementById('acc-to')?.value;
+  if (!dateFrom || !dateTo) { showToast('Selectați perioada.'); return; }
+
+  const btn = document.querySelector('#page-accounting button.btn-primary');
+  if (btn) { btn.disabled = true; btn.textContent = 'Se încarcă...'; }
+
+  const [salesR, purchasesR, cashR, bankR, reconR] = await Promise.all([
+    apiRequest('GET', `/reports/accounting/export?dateFrom=${dateFrom}&dateTo=${dateTo}&format=json`).catch(() => ({ok:false})),
+    apiRequest('GET', `/reports/accounting/exports/purchases?dateFrom=${dateFrom}&dateTo=${dateTo}`),
+    apiRequest('GET', `/reports/accounting/exports/cash?dateFrom=${dateFrom}&dateTo=${dateTo}`),
+    apiRequest('GET', `/reports/accounting/exports/bank?dateFrom=${dateFrom}&dateTo=${dateTo}`),
+    apiRequest('GET', `/reports/accounting/reconciliation?dateFrom=${dateFrom}&dateTo=${dateTo}`),
+  ]);
+
+  if (btn) { btn.disabled = false; btn.textContent = 'Încarcă'; }
+
+  // Registru vânzări — fallback la /reports/revenue/by-period dacă formatul e diferit
+  if (salesR.ok) {
+    const raw = Array.isArray(salesR.data) ? salesR.data : (salesR.data?.data ?? []);
+    _accSalesData = raw;
+    renderAccSales(raw);
+  }
+  if (purchasesR.ok) { _accPurchasesData = Array.isArray(purchasesR.data) ? purchasesR.data : []; renderAccPurchases(_accPurchasesData); }
+  if (cashR.ok)      { _accCashData      = Array.isArray(cashR.data)      ? cashR.data      : []; renderAccPaymentTable('acc-cash-content', _accCashData); }
+  if (bankR.ok)      { _accBankData      = Array.isArray(bankR.data)      ? bankR.data      : []; renderAccPaymentTable('acc-bank-content', _accBankData); }
+  if (reconR.ok)     { _accReconData     = reconR.data; renderReconciliation(_accReconData); }
+}
+
+function renderAccSales(rows) {
+  const tbody = document.getElementById('acc-sales-body');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:#9ca3af;">Nicio factură în perioadă.</td></tr>';
+    return;
+  }
+  let totalBase9 = 0, totalVat9 = 0, totalTotal = 0, totalPaid = 0;
+  tbody.innerHTML = rows.map(r => {
+    const base9  = parseFloat(r.base9  ?? r.baseNine  ?? 0);
+    const vat9   = parseFloat(r.vat9   ?? r.vatNine   ?? 0);
+    const total  = parseFloat(r.total  ?? r.totalAmount ?? 0);
+    const paid   = parseFloat(r.paidAmount ?? r.paid ?? 0);
+    const outstanding = +(total - paid).toFixed(2);
+    totalBase9 += base9; totalVat9 += vat9; totalTotal += total; totalPaid += paid;
+    const statusColor = r.paymentStatus === 'paid' ? '#16a34a' : outstanding > 0 ? '#ea580c' : '#6b7280';
+    return `<tr style="border-bottom:1px solid #f3ebe1;" class="table-row">
+      <td style="padding:9px 10px;font-size:12px;color:#6b7280;">${r.docDate ?? '–'}</td>
+      <td style="padding:9px 10px;font-weight:600;font-size:13px;">${r.docNumber ?? r.invoiceNumber ?? '–'}</td>
+      <td style="padding:9px 10px;font-size:12px;">${r.customerName ?? '–'}</td>
+      <td style="padding:9px 10px;font-size:11px;font-family:monospace;color:#6b7280;">${r.customerVatId || '–'}</td>
+      <td style="padding:9px 10px;text-align:right;font-size:12px;">${_fmtRON(base9)}</td>
+      <td style="padding:9px 10px;text-align:right;font-size:12px;color:#7c3aed;">${_fmtRON(vat9)}</td>
+      <td style="padding:9px 10px;text-align:right;font-weight:600;">${_fmtRON(total)}</td>
+      <td style="padding:9px 10px;text-align:right;color:#16a34a;">${_fmtRON(paid)}</td>
+      <td style="padding:9px 10px;text-align:center;"><span style="color:${statusColor};font-size:12px;font-weight:600;">${INV_STATUS_ACC[r.paymentStatus] ?? r.paymentStatus ?? '–'}</span></td>
+    </tr>`;
+  }).join('');
+
+  // Rând totale
+  tbody.innerHTML += `<tr style="background:#fdf8f2;font-weight:700;">
+    <td colspan="4" style="padding:9px 10px;font-size:12px;">TOTAL (${rows.length} facturi)</td>
+    <td style="padding:9px 10px;text-align:right;">${_fmtRON(totalBase9)}</td>
+    <td style="padding:9px 10px;text-align:right;color:#7c3aed;">${_fmtRON(totalVat9)}</td>
+    <td style="padding:9px 10px;text-align:right;">${_fmtRON(totalTotal)}</td>
+    <td style="padding:9px 10px;text-align:right;color:#16a34a;">${_fmtRON(totalPaid)}</td>
+    <td></td>
+  </tr>`;
+}
+
+function renderAccPurchases(rows) {
+  const tbody = document.getElementById('acc-purchases-body');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:#9ca3af;">Nicio recepție în perioadă.</td></tr>';
+    return;
+  }
+  let totalCost = 0;
+  tbody.innerHTML = rows.map(r => {
+    totalCost += r.lineTotal ?? 0;
+    return `<tr style="border-bottom:1px solid #f3ebe1;" class="table-row">
+      <td style="padding:9px 10px;font-size:12px;color:#6b7280;">${r.performedAt ?? '–'}</td>
+      <td style="padding:9px 10px;font-size:13px;font-weight:500;">${r.itemName ?? '–'} <span style="font-size:11px;color:#9ca3af;font-family:monospace;">${r.itemSku ?? ''}</span></td>
+      <td style="padding:9px 10px;font-size:12px;color:#6b7280;">${CAT_LABELS[r.category] ?? r.category ?? '–'}</td>
+      <td style="padding:9px 10px;text-align:right;font-size:12px;">${r.quantity ?? 0}</td>
+      <td style="padding:9px 10px;text-align:right;font-size:12px;">${r.unitCost != null ? _fmtRON(r.unitCost) : '–'}</td>
+      <td style="padding:9px 10px;text-align:right;font-weight:600;">${_fmtRON(r.lineTotal ?? 0)}</td>
+      <td style="padding:9px 10px;font-size:11px;font-family:monospace;color:#6b7280;">${r.lotNumber ?? '–'}</td>
+      <td style="padding:9px 10px;font-size:12px;color:#6b7280;">${r.performedBy ?? '–'}</td>
+    </tr>`;
+  }).join('');
+  tbody.innerHTML += `<tr style="background:#fdf8f2;font-weight:700;">
+    <td colspan="5" style="padding:9px 10px;font-size:12px;">TOTAL (${rows.length} recepții)</td>
+    <td style="padding:9px 10px;text-align:right;">${_fmtRON(totalCost)}</td>
+    <td colspan="2"></td>
+  </tr>`;
+}
+
+function renderAccPaymentTable(containerId, rows) {
+  const el = document.getElementById(containerId);
+  if (!rows.length) {
+    el.innerHTML = '<div style="text-align:center;padding:32px;color:#9ca3af;">Nicio plată în perioadă.</div>';
+    return;
+  }
+  let total = 0;
+  const body = rows.map(r => {
+    total += r.amount ?? 0;
+    return `<tr style="border-bottom:1px solid #f3ebe1;" class="table-row">
+      <td style="padding:9px 10px;font-size:12px;color:#6b7280;">${r.docDate ?? '–'}</td>
+      <td style="padding:9px 10px;font-weight:600;">${r.invoiceNumber ?? '–'}</td>
+      <td style="padding:9px 10px;font-size:12px;">${r.customerName ?? '–'}</td>
+      <td style="padding:9px 10px;text-align:right;font-weight:600;color:#16a34a;">${_fmtRON(r.amount ?? 0)} RON</td>
+      <td style="padding:9px 10px;font-size:12px;">${PAY_METHOD_ACC[r.method] ?? r.method ?? '–'}</td>
+      <td style="padding:9px 10px;font-size:11px;color:#9ca3af;">${r.reference ?? '–'}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML = `<table style="width:100%;border-collapse:collapse;min-width:600px;">
+    <thead><tr style="background:#fdf8f2;">
+      <th style="padding:9px 10px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">Data</th>
+      <th style="padding:9px 10px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">Factură</th>
+      <th style="padding:9px 10px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">Client</th>
+      <th style="padding:9px 10px;text-align:right;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">Sumă</th>
+      <th style="padding:9px 10px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">Metodă</th>
+      <th style="padding:9px 10px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;">Referință</th>
+    </tr></thead>
+    <tbody>${body}</tbody>
+    <tfoot><tr style="background:#fdf8f2;font-weight:700;">
+      <td colspan="3" style="padding:9px 10px;font-size:12px;">TOTAL (${rows.length} plăți)</td>
+      <td style="padding:9px 10px;text-align:right;color:#16a34a;">${_fmtRON(total)} RON</td>
+      <td colspan="2"></td>
+    </tr></tfoot>
+  </table>`;
+}
+
+function renderReconciliation(d) {
+  if (!d) return;
+  const s = d.summary;
+
+  // KPI-uri
+  const vatDetail = (s.vatByRate ?? []).map(v => `TVA ${v.vatRate}%: ${_fmtRON(v.vatTotal)} RON`).join(' · ');
+  _setEl('acc-base',    _fmtRON(s.totalBase ?? 0) + ' RON');
+  _setEl('acc-vat',     _fmtRON(s.totalVatCollected ?? 0) + ' RON');
+  _setEl('acc-vat-detail', vatDetail || '–');
+
+  const outstanding = s.totalOutstanding ?? 0;
+  _setEl('acc-outstanding', _fmtRON(outstanding) + ' RON');
+  const outCount = d.discrepancies?.unpaidInvoices?.length ?? 0;
+  _setEl('acc-outstanding-count', outCount + ' factur' + (outCount === 1 ? 'ă' : 'i'));
+  document.getElementById('acc-outstanding').style.color = outstanding > 0 ? '#ea580c' : '#16a34a';
+
+  const spvIssues = (d.discrepancies?.b2bWithoutSpv?.length ?? 0) + (d.discrepancies?.b2bSpvRejected?.length ?? 0);
+  _setEl('acc-spv-issues', spvIssues);
+  document.getElementById('acc-spv-issues').style.color = spvIssues > 0 ? '#dc2626' : '#16a34a';
+
+  // Actualizăm și inv-count din sales data
+  _setEl('acc-inv-count', _accSalesData.length || '–');
+  const totalInv = _accSalesData.reduce((s, r) => s + parseFloat(r.total ?? r.totalAmount ?? 0), 0);
+  _setEl('acc-inv-total', _fmtRON(totalInv) + ' RON');
+
+  // Render content
+  const reconEl = document.getElementById('acc-recon-content');
+  let html = '';
+
+  // Sumar TVA
+  html += `<div class="card" style="margin-bottom:16px;">
+    <div style="font-size:13px;font-weight:600;color:#2d1a0a;margin-bottom:12px;">Sumar TVA colectată</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+      ${(s.vatByRate ?? []).map(v => `
+        <div style="padding:12px;background:#fdf8f2;border-radius:8px;">
+          <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;margin-bottom:4px;">Cota TVA ${v.vatRate}%</div>
+          <div style="font-size:16px;font-weight:700;color:#7c3aed;">${_fmtRON(v.vatTotal)} RON</div>
+          <div style="font-size:11px;color:#b89275;margin-top:2px;">Bază: ${_fmtRON(v.baseTotal)} RON · ${v.invoiceCount} facturi</div>
+        </div>`).join('')}
+      <div style="padding:12px;background:#ede9fe;border-radius:8px;border:1px solid #ddd6fe;">
+        <div style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;margin-bottom:4px;">Total TVA colectată</div>
+        <div style="font-size:18px;font-weight:700;color:#7c3aed;">${_fmtRON(s.totalVatCollected ?? 0)} RON</div>
+      </div>
+    </div>
+  </div>`;
+
+  // Sumar încasări pe metode
+  if ((s.paymentsByMethod ?? []).length > 0) {
+    html += `<div class="card" style="margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:600;color:#2d1a0a;margin-bottom:12px;">Încasări pe metode de plată</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;">
+        ${s.paymentsByMethod.map(p => `
+          <div style="padding:10px 12px;background:#fdf8f2;border-radius:8px;">
+            <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;margin-bottom:3px;">${PAY_METHOD_ACC[p.method] ?? p.method}</div>
+            <div style="font-size:15px;font-weight:700;color:#16a34a;">${_fmtRON(p.total)} RON</div>
+            <div style="font-size:11px;color:#b89275;">${p.count} plăți</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  // Discrepanțe: facturi neîncasate
+  const unpaid = d.discrepancies?.unpaidInvoices ?? [];
+  html += `<div class="card" style="margin-bottom:16px;">
+    <div style="font-size:13px;font-weight:600;color:#2d1a0a;margin-bottom:12px;">
+      Facturi cu sold restant
+      ${unpaid.length > 0 ? `<span style="background:#fff7ed;color:#ea580c;border-radius:6px;padding:2px 8px;font-size:11px;margin-left:8px;">${unpaid.length} discrepanțe</span>` : '<span style="color:#16a34a;font-size:12px;font-weight:400;margin-left:8px;">✓ toate achitate</span>'}
+    </div>`;
+  if (unpaid.length === 0) {
+    html += '<div style="color:#16a34a;font-size:13px;">Nicio factură cu sold restant în perioadă. ✓</div>';
+  } else {
+    html += `<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;min-width:600px;font-size:13px;">
+      <thead><tr style="background:#fff7ed;">
+        <th style="padding:8px;text-align:left;color:#9a3412;font-weight:600;">Factură</th>
+        <th style="padding:8px;text-align:left;color:#9a3412;font-weight:600;">Client</th>
+        <th style="padding:8px;text-align:left;color:#9a3412;font-weight:600;">CUI</th>
+        <th style="padding:8px;text-align:right;color:#9a3412;font-weight:600;">Total</th>
+        <th style="padding:8px;text-align:right;color:#9a3412;font-weight:600;">Sold restant</th>
+        <th style="padding:8px;text-align:right;color:#9a3412;font-weight:600;">Scadent</th>
+        <th style="padding:8px;text-align:right;color:#9a3412;font-weight:600;">Zile depășit</th>
+      </tr></thead>
+      <tbody>${unpaid.map(r => `<tr style="border-bottom:1px solid #fed7aa;">
+        <td style="padding:8px;font-weight:600;">${r.invoiceNumber}</td>
+        <td style="padding:8px;">${r.billingName}</td>
+        <td style="padding:8px;font-family:monospace;font-size:11px;color:#6b7280;">${r.billingCui || '–'}</td>
+        <td style="padding:8px;text-align:right;">${_fmtRON(r.totalAmount)} RON</td>
+        <td style="padding:8px;text-align:right;font-weight:700;color:#ea580c;">${_fmtRON(r.outstanding)} RON</td>
+        <td style="padding:8px;text-align:right;color:#6b7280;">${r.dueDate ?? '–'}</td>
+        <td style="padding:8px;text-align:right;color:${r.daysOverdue > 0 ? '#dc2626' : '#6b7280'};font-weight:${r.daysOverdue > 0 ? '600' : '400'};">${r.daysOverdue > 0 ? r.daysOverdue + 'z' : 'curent'}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+  html += '</div>';
+
+  // Discrepanțe: B2B fără SPV
+  const b2bNone = d.discrepancies?.b2bWithoutSpv   ?? [];
+  const b2bBad  = d.discrepancies?.b2bSpvRejected  ?? [];
+  const allSpvIssues = [...b2bNone, ...b2bBad];
+  html += `<div class="card">
+    <div style="font-size:13px;font-weight:600;color:#2d1a0a;margin-bottom:12px;">
+      Facturi B2B — status SPV
+      ${allSpvIssues.length > 0 ? `<span style="background:#fef2f2;color:#dc2626;border-radius:6px;padding:2px 8px;font-size:11px;margin-left:8px;">${allSpvIssues.length} probleme</span>` : '<span style="color:#16a34a;font-size:12px;font-weight:400;margin-left:8px;">✓ fără probleme</span>'}
+    </div>`;
+  if (allSpvIssues.length === 0) {
+    html += '<div style="color:#16a34a;font-size:13px;">Nicio problemă SPV pentru B2B în perioadă. ✓</div>';
+  } else {
+    html += `<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:500px;">
+      <thead><tr style="background:#fef2f2;">
+        <th style="padding:8px;text-align:left;color:#991b1b;font-weight:600;">Factură</th>
+        <th style="padding:8px;text-align:left;color:#991b1b;font-weight:600;">Client</th>
+        <th style="padding:8px;text-align:left;color:#991b1b;font-weight:600;">CUI</th>
+        <th style="padding:8px;text-align:right;color:#991b1b;font-weight:600;">Total</th>
+        <th style="padding:8px;text-align:left;color:#991b1b;font-weight:600;">Problemă</th>
+      </tr></thead>
+      <tbody>${allSpvIssues.map(r => `<tr style="border-bottom:1px solid #fecaca;">
+        <td style="padding:8px;font-weight:600;">${r.invoiceNumber}</td>
+        <td style="padding:8px;">${r.billingName}</td>
+        <td style="padding:8px;font-family:monospace;font-size:11px;">${r.billingCui}</td>
+        <td style="padding:8px;text-align:right;">${_fmtRON(r.totalAmount)} RON</td>
+        <td style="padding:8px;color:#dc2626;font-weight:600;">${r.issue}${r.errorMessage ? ': ' + r.errorMessage : ''}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+  html += '</div>';
+
+  reconEl.innerHTML = html;
+}
+
+function exportAccountingCsv(type) {
+  const dateFrom = document.getElementById('acc-from')?.value;
+  const dateTo   = document.getElementById('acc-to')?.value;
+  if (!dateFrom || !dateTo) { showToast('Selectați perioada înainte de export.'); return; }
+
+  const urlMap = {
+    sales:     `/reports/accounting/export?dateFrom=${dateFrom}&dateTo=${dateTo}&format=csv`,
+    purchases: `/reports/accounting/exports/purchases?dateFrom=${dateFrom}&dateTo=${dateTo}&format=csv`,
+    cash:      `/reports/accounting/exports/cash?dateFrom=${dateFrom}&dateTo=${dateTo}&format=csv`,
+    bank:      `/reports/accounting/exports/bank?dateFrom=${dateFrom}&dateTo=${dateTo}&format=csv`,
+  };
+  const url = API_BASE + (urlMap[type] ?? urlMap.sales);
+  const token = _authToken;
+  fetch(url, { headers: { Authorization: 'Bearer ' + token } })
+    .then(r => r.blob())
+    .then(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${type}_${dateFrom}_${dateTo}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    })
+    .catch(() => showToast('Export eșuat.'));
+}
 
 // ==================== STOCURI ====================
 

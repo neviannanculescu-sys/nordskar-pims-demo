@@ -342,7 +342,7 @@
         <!-- ==================== CLIENȚI ==================== -->
         <div id="page-clients" class="page">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-            <input type="text" placeholder="Caută după nume, email sau telefon→ style="max-width:300px;" oninput="filterClients(this.value)" />
+            <input type="text" placeholder="Caută după nume, email sau telefon→" style="max-width:300px;" oninput="filterClients(this.value)" />
             <button onclick="openAddClientModal('clients')" class="btn-primary">
               <svg style="width:16px;height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
               Client nou
@@ -363,7 +363,7 @@
         <!-- ==================== ANIMALE ==================== -->
         <div id="page-animals" class="page">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-            <input type="text" placeholder="Caută după nume, rasă sau proprietar→ style="max-width:300px;" oninput="filterAnimals(this.value)" />
+            <input type="text" placeholder="Caută după nume, rasă sau proprietar→" style="max-width:300px;" oninput="filterAnimals(this.value)" />
             <button onclick="showModal('addAnimal')" class="btn-primary">
               <svg style="width:16px;height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
               Animal nou
@@ -411,7 +411,7 @@
         <div id="page-consultations" class="page">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
             <div style="display:flex;gap:8px;">
-              <input type="text" placeholder="Caută consultație→ style="max-width:260px;" />
+              <input type="text" placeholder="Caută consultație→" style="max-width:260px;" />
               <select style="width:auto;">
                 <option>Toate statusurile</option>
                 <option>Deschise</option>
@@ -439,7 +439,7 @@
         <div id="page-invoices" class="page">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
             <div style="display:flex;gap:8px;">
-              <input type="text" placeholder="Caută după nr. factură sau client→ style="max-width:280px;" />
+              <input type="text" placeholder="Caută după nr. factură sau client→" style="max-width:280px;" />
               <select style="width:auto;" onchange="filterInvoices(this.value)">
                 <option value="">Toate statusurile</option>
                 <option value="draft">Ciornă</option>
@@ -527,7 +527,7 @@
         <span style="font-size:20px;">🐾</span>Animal nou
       </button>
       <button onclick="newAppointmentForClient()" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 8px;background:#fdf8f2;border:1px solid #e8d5b7;border-radius:10px;cursor:pointer;font-size:12px;color:#3d2614;font-weight:500;transition:background .15s;" onmouseover="this.style.background='#fef9c3'" onmouseout="this.style.background='#f8fafc'">
-        <span style="font-size:20px;">🐾".</span>Programare
+        <span style="font-size:20px;">🐾</span>Programare
       </button>
       <button onclick="hideModal();openFreshInvoice()" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 8px;background:#fdf8f2;border:1px solid #e8d5b7;border-radius:10px;cursor:pointer;font-size:12px;color:#3d2614;font-weight:500;transition:background .15s;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#f8fafc'">
         <span style="font-size:20px;">🐾</span>Factură nouă
@@ -588,7 +588,7 @@
           </select>
         </div>
         <div id="nc-cui-wrap" style="display:none;"><label>CUI</label><input id="nc-cui" type="text" placeholder="RO12345678" /></div>
-        <div id="nc-cnp-wrap"><label>CNP (opțional)</label><input id="nc-cnp" type="text" placeholder="1900101→ /></div>
+        <div id="nc-cnp-wrap"><label>CNP (opțional)</label><input id="nc-cnp" type="text" placeholder="1900101→" /></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div><label>Prenume / Denumire</label><input id="nc-first" type="text" placeholder="Ion" /></div>
@@ -682,7 +682,7 @@
       </div>
       <div>
         <label>Motiv programare</label>
-        <input id="appt-reason" type="text" placeholder="Ex: vaccinare anuală, consultație generală→ />
+        <input id="appt-reason" type="text" placeholder="Ex: vaccinare anuală, consultație generală→" />
       </div>
       <div>
         <label>Prioritate</label>
@@ -692,7 +692,7 @@
           <option value="urgent">Urgență</option>
         </select>
       </div>
-      <div><label>Observații interne</label><input id="appt-notes" type="text" placeholder="Informații suplimentare pentru echipă→ /></div>
+      <div><label>Observații interne</label><input id="appt-notes" type="text" placeholder="Informații suplimentare pentru echipă→" /></div>
     </div>
     <div style="display:flex;gap:10px;margin-top:24px;">
       <button onclick="saveAppointment()" class="btn-primary" style="flex:1;justify-content:center;">Salvează programarea</button>
@@ -861,7 +861,7 @@
         </div>
         <div style="margin-bottom:10px;">
           <label style="font-size:12px;color:#5c3d24;font-weight:500;">Observații</label>
-          <input id="tr-notes" type="text" placeholder="Ex: administrat cu mâncare, evitați expunerea la soare→ style="margin-top:4px;" />
+          <input id="tr-notes" type="text" placeholder="Ex: administrat cu mâncare, evitați expunerea la soare→" style="margin-top:4px;" />
         </div>
         <div style="display:flex;gap:8px;">
           <button onclick="saveTreatmentLine()" class="btn-primary" style="font-size:13px;padding:6px 14px;">Salvează tratamentul</button>
@@ -1841,7 +1841,7 @@ function renderInvoiceLines() {
     <div class="inv-line-row" style="display:grid;grid-template-columns:1fr 60px 90px 32px;gap:0;border-top:1px solid #f3e8d8;padding:6px 12px;align-items:center;">
       <input type="text" class="inv-desc" value="${l.desc}" oninput="recalcTotal()"
         style="border:none;background:transparent;padding:4px 0;font-size:13px;outline:none;width:100%;"
-        placeholder="Descriere serviciu sau produs→ />
+        placeholder="Descriere serviciu sau produs→" />
       <input type="number" class="inv-qty" value="${l.qty}" min="1" oninput="recalcTotal()"
         style="border:none;background:#fdf8f2;border-radius:4px;padding:4px 6px;font-size:13px;text-align:right;width:100%;outline:none;" />
       <input type="number" class="inv-price" value="${l.price || ''}" min="0" step="0.01" oninput="recalcTotal()"
@@ -1949,6 +1949,10 @@ function showModal(id) {
   if (id === 'addInvoice' && !_returningToInvoice) {
     if (!_invoicePrefill) _invoicePrefill = null;
     initInvoiceLines();
+  }
+  if (id === 'addAnimal') {
+    resetAnimalForm();
+    populateAnimalOwnerSelector(null);
   }
   if (id === 'addAppointment') {
     populateApptAnimalSelector();

@@ -55,11 +55,13 @@ export interface InventoryConsumptionRow {
 }
 
 export interface UnbilledConsultationRow {
-  consultationId:   string;
-  consultationDate: string;
-  unbilledProcedures: number;
-  unbilledMedications: number;
-  estimatedTotal:   number;
+  consultationId:        string;
+  consultationDate:      string;
+  petName:               string;
+  ownerName:             string;
+  unbilledProcedures:    number;
+  unbilledMedications:   number;
+  estimatedTotal:        number;
   daysSinceConsultation: number;
 }
 
@@ -335,16 +337,20 @@ export class ReportsService {
       : sql``;
 
     const rows = await this.db.execute<{
-      consultation_id:        string;
-      consultation_date:      string;
-      unbilled_procedures:    string;
-      unbilled_medications:   string;
-      estimated_total:        string;
+      consultation_id:         string;
+      consultation_date:       string;
+      pet_name:                string;
+      owner_name:              string;
+      unbilled_procedures:     string;
+      unbilled_medications:    string;
+      estimated_total:         string;
       days_since_consultation: string;
     }>(sql`
       SELECT
         c.id                                                            AS consultation_id,
         c.consultation_date::DATE::TEXT                                 AS consultation_date,
+        COALESCE(pt.name, 'Necunoscut')                                 AS pet_name,
+        COALESCE(o.first_name || ' ' || o.last_name, 'Necunoscut')     AS owner_name,
         COUNT(p.id)  FILTER (WHERE p.id IS NOT NULL)::TEXT              AS unbilled_procedures,
         COUNT(tl.id) FILTER (WHERE tl.id IS NOT NULL)::TEXT             AS unbilled_medications,
         COALESCE(
@@ -355,35 +361,36 @@ export class ReportsService {
         )                                                               AS estimated_total,
         EXTRACT(DAY FROM NOW() - c.consultation_date)::TEXT            AS days_since_consultation
       FROM consultations c
+      LEFT JOIN pets pt      ON pt.id = c.pet_id
+      LEFT JOIN owners o     ON o.id  = c.owner_id
       LEFT JOIN procedures p
         ON p.consultation_id = c.id
         AND p.deleted_at IS NULL
         AND p.is_billable = TRUE
-        AND p.billed = FALSE
-        AND p.signed_by IS NOT NULL
       LEFT JOIN price_catalog pc ON pc.id = p.procedure_template_id
       LEFT JOIN treatment_lines tl
         ON tl.consultation_id = c.id
         AND tl.deleted_at IS NULL
         AND tl.is_dispensed = TRUE
         AND tl.is_billable = TRUE
-        AND tl.billed = FALSE
       WHERE c.deleted_at IS NULL
         AND c.signed_by IS NOT NULL
         AND c.billed = FALSE
         ${dateFromFilter}
         ${dateToFilter}
-      GROUP BY c.id, c.consultation_date
+      GROUP BY c.id, c.consultation_date, pt.name, o.first_name, o.last_name
       HAVING COUNT(p.id) > 0 OR COUNT(tl.id) > 0
       ORDER BY c.consultation_date ASC
     `);
 
     return rows.rows.map((r) => ({
-      consultationId:       r.consultation_id,
-      consultationDate:     r.consultation_date,
-      unbilledProcedures:   parseInt(r.unbilled_procedures   ?? '0', 10),
-      unbilledMedications:  parseInt(r.unbilled_medications  ?? '0', 10),
-      estimatedTotal:       parseFloat(r.estimated_total     ?? '0'),
+      consultationId:        r.consultation_id,
+      consultationDate:      r.consultation_date,
+      petName:               r.pet_name,
+      ownerName:             r.owner_name,
+      unbilledProcedures:    parseInt(r.unbilled_procedures   ?? '0', 10),
+      unbilledMedications:   parseInt(r.unbilled_medications  ?? '0', 10),
+      estimatedTotal:        parseFloat(r.estimated_total     ?? '0'),
       daysSinceConsultation: parseInt(r.days_since_consultation ?? '0', 10),
     }));
   }

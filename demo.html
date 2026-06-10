@@ -201,6 +201,10 @@
           <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
           Facturi
         </a>
+        <a onclick="nav('unbilled')" class="sidebar-link" id="nav-unbilled">
+          <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Nefacturate <span id="nav-unbilled-badge" style="display:none;background:#ea580c;color:white;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;">0</span>
+        </a>
       </nav>
 
       <div style="padding:16px;border-top:1px solid #6b4228;display:flex;align-items:center;gap:12px;">
@@ -243,8 +247,8 @@
                   <svg style="width:16px;height:16px;color:#e2ab3b;" fill="none" stroke="#e2ab3b" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
                 </div>
               </div>
-              <div style="font-size:32px;font-weight:700;color:#2d1a0a;">12</div>
-              <div style="font-size:12px;color:#16a34a;margin-top:4px;">→  3 față de ieri</div>
+              <div id="dash-consultations-today" style="font-size:32px;font-weight:700;color:#2d1a0a;">–</div>
+              <div style="font-size:12px;color:#6b4a2e;margin-top:4px;">astăzi · <span id="dash-consultations-month">–</span> luna curentă</div>
             </div>
             <div class="stat-card">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
@@ -253,8 +257,8 @@
                   <svg style="width:16px;height:16px;" fill="none" stroke="#16a34a" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>
               </div>
-              <div style="font-size:32px;font-weight:700;color:#2d1a0a;">18.420</div>
-              <div style="font-size:12px;color:#6b4a2e;margin-top:4px;">RON facturați</div>
+              <div id="dash-revenue-month" style="font-size:32px;font-weight:700;color:#2d1a0a;">–</div>
+              <div style="font-size:12px;color:#6b4a2e;margin-top:4px;">RON facturați luna curentă</div>
             </div>
             <div class="stat-card">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
@@ -263,8 +267,8 @@
                   <svg style="width:16px;height:16px;" fill="none" stroke="#ea580c" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>
               </div>
-              <div style="font-size:32px;font-weight:700;color:#2d1a0a;">2.200</div>
-              <div style="font-size:12px;color:#ea580c;margin-top:4px;">RON neîncasați</div>
+              <div id="dash-outstanding" style="font-size:32px;font-weight:700;color:#ea580c;">–</div>
+              <div style="font-size:12px;color:#ea580c;margin-top:4px;">RON sold restant · <span id="dash-outstanding-count">–</span> facturi</div>
             </div>
             <div class="stat-card">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
@@ -273,7 +277,7 @@
                   <svg style="width:16px;height:16px;" fill="none" stroke="#9333ea" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
                 </div>
               </div>
-              <div style="font-size:32px;font-weight:700;color:#2d1a0a;">247</div>
+              <div id="dash-patients" style="font-size:32px;font-weight:700;color:#2d1a0a;">–</div>
               <div style="font-size:12px;color:#6b4a2e;margin-top:4px;">pacienți înregistrați</div>
             </div>
           </div>
@@ -320,9 +324,9 @@
               <div style="display:flex;align-items:flex-start;gap:12px;">
                 <svg style="width:20px;height:20px;color:#f97316;flex-shrink:0;margin-top:2px;" fill="none" stroke="#f97316" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 <div>
-                  <div style="font-size:14px;font-weight:600;color:#2d1a0a;">3 consultații nefacturate</div>
-                  <div style="font-size:13px;color:#6b4a2e;margin-top:4px;">Servicii prestate dar neemise pe factură. Valoare estimată: 450 RON.</div>
-                  <button onclick="nav('consultations')" style="background:none;border:none;color:#ea580c;font-size:13px;cursor:pointer;padding:0;margin-top:8px;">Verifică →</button>
+                  <div id="dash-unbilled-title" style="font-size:14px;font-weight:600;color:#2d1a0a;">Verificare servicii nefacturate...</div>
+                  <div id="dash-unbilled-desc" style="font-size:13px;color:#6b4a2e;margin-top:4px;">Se încarcă datele...</div>
+                  <button onclick="nav('unbilled')" style="background:none;border:none;color:#ea580c;font-size:13px;cursor:pointer;padding:0;margin-top:8px;">Vezi lista →</button>
                 </div>
               </div>
             </div>
@@ -330,8 +334,8 @@
               <div style="display:flex;align-items:flex-start;gap:12px;">
                 <svg style="width:20px;height:20px;flex-shrink:0;margin-top:2px;" fill="none" stroke="#3b82f6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 <div>
-                  <div style="font-size:14px;font-weight:600;color:#2d1a0a;">1 factură în procesare SPV</div>
-                  <div style="font-size:13px;color:#6b4a2e;margin-top:4px;">Factura VET-2026-000045 este în așteptare la ANAF e-Factura.</div>
+                  <div id="dash-outstanding-title" style="font-size:14px;font-weight:600;color:#2d1a0a;">Facturi restante</div>
+                  <div id="dash-outstanding-desc" style="font-size:13px;color:#6b4a2e;margin-top:4px;">Se încarcă datele...</div>
                   <button onclick="nav('invoices')" style="background:none;border:none;color:#e2ab3b;font-size:13px;cursor:pointer;padding:0;margin-top:8px;">Urmărește →</button>
                 </div>
               </div>
@@ -464,16 +468,39 @@
               <thead><tr>
                 <th>Nr. factură</th><th>Client</th><th>Data emiterii</th>
                 <th style="text-align:right;">Total</th><th style="text-align:right;">Încasat</th>
+                <th style="text-align:right;">Sold restant</th>
                 <th>Status plată</th><th>ANAF / SPV</th><th></th>
               </tr></thead>
               <tbody id="invoicesTable"></tbody>
             </table>
           </div>
-          <div style="background:#fdf8f2;border-radius:10px;border:1px solid #e8d5b7;padding:14px 20px;display:flex;gap:32px;font-size:13px;">
-            <div><span style="color:#6b4a2e;">Total facturat luna curentă: </span><strong>18.420,00 RON</strong></div>
-            <div><span style="color:#6b4a2e;">Neîncasat: </span><strong style="color:#ea580c;">2.200,00 RON</strong></div>
-            <div><span style="color:#6b4a2e;">Facturi trimise la ANAF: </span><strong>42</strong></div>
-            <div><span style="color:#6b4a2e;">Acceptate ANAF: </span><strong style="color:#16a34a;">41</strong></div>
+          <div style="background:#fdf8f2;border-radius:10px;border:1px solid #e8d5b7;padding:14px 20px;display:flex;gap:32px;font-size:13px;flex-wrap:wrap;">
+            <div><span style="color:#6b4a2e;">Total facturat luna curentă: </span><strong id="inv-summary-revenue">– RON</strong></div>
+            <div><span style="color:#6b4a2e;">Sold restant total: </span><strong id="inv-summary-outstanding" style="color:#ea580c;">– RON</strong></div>
+            <div><span style="color:#6b4a2e;">Facturi cu sold: </span><strong id="inv-summary-outstanding-count">–</strong></div>
+            <div><span style="color:#6b4a2e;">Acceptate ANAF: </span><strong id="inv-summary-spv-accepted" style="color:#16a34a;">–</strong></div>
+          </div>
+        </div>
+
+        <!-- ==================== SERVICII NEFACTURATE ==================== -->
+        <div id="page-unbilled" class="page">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <div>
+              <h2 style="font-size:18px;font-weight:700;color:#2d1a0a;margin:0;">Servicii nefacturate</h2>
+              <div style="font-size:13px;color:#6b4a2e;margin-top:4px;">Consultații semnate cu proceduri sau medicamente neemise pe factură</div>
+            </div>
+            <button onclick="loadDashboardStats()" class="btn-secondary" style="font-size:13px;">↺ Actualizează</button>
+          </div>
+          <div id="unbilled-alert" style="display:none;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px 18px;margin-bottom:16px;font-size:13px;color:#9a3412;"></div>
+          <div class="card" style="overflow:hidden;">
+            <table style="width:100%;border-collapse:collapse;">
+              <thead><tr>
+                <th>Data consultație</th><th>Pacient</th><th>Proprietar</th>
+                <th style="text-align:center;">Proceduri</th><th style="text-align:center;">Medicamente</th>
+                <th style="text-align:right;">Valoare est.</th><th style="text-align:center;">Zile</th><th></th>
+              </tr></thead>
+              <tbody id="unbilledTable"><tr><td colspan="8" style="text-align:center;padding:32px;color:#9ca3af;">Se încarcă...</td></tr></tbody>
+            </table>
           </div>
         </div>
 
@@ -1414,17 +1441,130 @@ function nav(page) {
 
 async function renderAll() {
   setSubtitle();
-  // Încarc species + vets o singură dată (cache pentru toată sesiunea)
   if (_speciesCache.length === 0) await loadSpecies();
   if (_vetsCache.length === 0)    await loadVets();
-  // Încarc clienți + animale din API
   await loadClientsFromApi();
-  // Încarc programări, consultații, facturi din API
   await Promise.all([
     loadAppointmentsFromApi(),
     loadConsultationsFromApi(),
     loadInvoicesFromApi(),
+    loadDashboardStats(),
   ]);
+}
+
+async function loadDashboardStats() {
+  const [dashR, outstandingR, unbilledR] = await Promise.all([
+    apiRequest('GET', '/reports/dashboard'),
+    apiRequest('GET', '/reports/invoices/outstanding'),
+    apiRequest('GET', '/reports/unbilled-services'),
+  ]);
+
+  // ── KPI cards ──
+  if (dashR.ok) {
+    const d = dashR.data;
+    _setEl('dash-consultations-today',  d.today.consultations);
+    _setEl('dash-consultations-month',  d.month.consultations);
+    _setEl('dash-revenue-month',        _fmtRON(d.month.revenue));
+    _setEl('dash-outstanding',          _fmtRON(d.month.outstanding));
+    _setEl('dash-patients',             animals.length || '–');
+
+    // Sumar facturi
+    _setEl('inv-summary-revenue',      _fmtRON(d.month.revenue) + ' RON');
+    _setEl('inv-summary-outstanding',  _fmtRON(d.month.outstanding) + ' RON');
+    _setEl('inv-summary-spv-accepted', d.spv.accepted);
+  }
+
+  // ── Outstanding ──
+  if (outstandingR.ok && Array.isArray(outstandingR.data)) {
+    const list = outstandingR.data;
+    const totalOuts = list.reduce((s, r) => s + r.outstanding, 0);
+    _setEl('dash-outstanding-count', list.length);
+    _setEl('inv-summary-outstanding-count', list.length);
+    _setEl('dash-outstanding-title', list.length > 0
+      ? `${list.length} factur${list.length === 1 ? 'ă' : 'i'} cu sold restant`
+      : 'Nicio factură cu sold restant');
+    _setEl('dash-outstanding-desc', list.length > 0
+      ? `Total neîncasat: ${_fmtRON(totalOuts)} RON · Cea mai veche: ${list[0]?.issuedAt || '–'}`
+      : 'Toate facturile emise sunt achitate integral.');
+  }
+
+  // ── Nefacturate ──
+  if (unbilledR.ok && Array.isArray(unbilledR.data)) {
+    window._unbilledServices = unbilledR.data;
+    const cnt = unbilledR.data.length;
+    const val = unbilledR.data.reduce((s, r) => s + r.estimatedTotal, 0);
+    _setEl('dash-unbilled-title', cnt > 0
+      ? `${cnt} consultați${cnt === 1 ? 'e' : 'i'} nefacturate`
+      : 'Toate consultațiile sunt facturate');
+    _setEl('dash-unbilled-desc', cnt > 0
+      ? `Valoare estimată: ${_fmtRON(val)} RON · Servicii prestate neemise pe factură.`
+      : 'Nu există servicii nefacturate în acest moment.');
+    renderUnbilledPage();
+  }
+}
+
+function _setEl(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+function _fmtRON(n) {
+  return Number(n || 0).toLocaleString('ro-RO', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function renderUnbilledPage() {
+  const data = window._unbilledServices || [];
+  const cnt  = data.length;
+
+  // Badge sidebar
+  const badge = document.getElementById('nav-unbilled-badge');
+  if (badge) {
+    badge.textContent = cnt;
+    badge.style.display = cnt > 0 ? 'inline' : 'none';
+  }
+
+  const alertEl = document.getElementById('unbilled-alert');
+  const tableEl = document.getElementById('unbilledTable');
+  if (!tableEl) return;
+
+  if (cnt === 0) {
+    if (alertEl) alertEl.style.display = 'none';
+    tableEl.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:#16a34a;font-weight:500;">✓ Toate consultațiile au fost facturate.</td></tr>`;
+    return;
+  }
+
+  const totalVal = data.reduce((s, r) => s + r.estimatedTotal, 0);
+  if (alertEl) {
+    alertEl.style.display = 'block';
+    alertEl.innerHTML = `<strong>Atenție:</strong> ${cnt} consultați${cnt===1?'e':'i'} cu valoare estimată de <strong>${_fmtRON(totalVal)} RON</strong> nu au fost încă facturate.`;
+  }
+
+  tableEl.innerHTML = data.map(r => {
+    const dayStyle = r.daysSinceConsultation > 7
+      ? 'background:#fee2e2;color:#dc2626;font-weight:600;'
+      : r.daysSinceConsultation > 3
+        ? 'background:#fff7ed;color:#ea580c;'
+        : 'background:#dcfce7;color:#166534;';
+    const consId = r.consultationId;
+    return `<tr class="table-row">
+      <td style="white-space:nowrap;">${r.consultationDate}</td>
+      <td style="font-weight:500;">${r.petName}</td>
+      <td style="color:#6b4a2e;">${r.ownerName}</td>
+      <td style="text-align:center;">${r.unbilledProcedures > 0 ? `<span class="badge" style="background:#dbeafe;color:#1e40af;">${r.unbilledProcedures}</span>` : '–'}</td>
+      <td style="text-align:center;">${r.unbilledMedications > 0 ? `<span class="badge" style="background:#fef9c3;color:#854d0e;">${r.unbilledMedications}</span>` : '–'}</td>
+      <td style="text-align:right;font-weight:600;color:#2d1a0a;">${_fmtRON(r.estimatedTotal)} RON</td>
+      <td style="text-align:center;"><span class="badge" style="${dayStyle}padding:3px 8px;">${r.daysSinceConsultation}z</span></td>
+      <td style="text-align:right;"><button onclick="openInvoiceFromUnbilled('${consId}')" class="btn-primary" style="font-size:12px;padding:5px 12px;">Emite factură</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function openInvoiceFromUnbilled(consultationId) {
+  const cons = consultations.find(c => c.id === consultationId);
+  if (cons) {
+    openInvoiceFromConsultation(consultations.indexOf(cons));
+  } else {
+    showToast('Ț️ Consultația nu a fost găsită în lista locală. Reîncarcă pagina.');
+  }
 }
 
 async function loadClientsFromApi() {
@@ -1664,17 +1804,27 @@ const payStyle  = { paid:'background:#dcfce7;color:#166534;', partially_paid:'ba
 const payLabel  = { paid:'Plătită', partially_paid:'Parțial plătită', issued:'Emisă', draft:'Ciornă' };
 
 function renderInvoices(data) {
-  document.getElementById('invoicesTable').innerHTML = data.map(i => `
+  document.getElementById('invoicesTable').innerHTML = data.map(i => {
+    const total     = parseFloat(i.total) || 0;
+    const paid      = parseFloat(i.paid)  || 0;
+    const remaining = +(total - paid).toFixed(2);
+    const remStyle  = remaining > 0
+      ? 'text-align:right;font-weight:600;color:#ea580c;'
+      : 'text-align:right;color:#9ca3af;';
+    const remText   = remaining > 0 ? remaining.toLocaleString('ro-RO', {minimumFractionDigits:2}) + ' RON' : '–';
+    return `
     <tr class="table-row">
       <td style="font-weight:500;color:#e2ab3b;">${i.number}</td>
       <td style="color:#3d2614;">${i.client}</td>
       <td style="color:#6b4a2e;white-space:nowrap;">${i.date}</td>
       <td style="text-align:right;font-weight:500;">${i.total} RON</td>
       <td style="text-align:right;color:#16a34a;">${i.paid} RON</td>
+      <td style="${remStyle}">${remText}</td>
       <td><span class="badge" style="${payStyle[i.status]}">${payLabel[i.status]}</span></td>
       <td><span class="badge" style="${spvStyle[i.spv]}">${spvLabel[i.spv]}</span></td>
       <td style="text-align:right;"><button onclick="showInvoiceDetails('${i.number}')" style="background:none;border:none;color:#e2ab3b;font-size:12px;cursor:pointer;">Detalii</button></td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 function filterInvoices(status) {
   renderInvoices(status ? invoices.filter(i => i.status === status) : invoices);

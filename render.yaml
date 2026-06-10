@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: nordskar-pims-api
+    runtime: node
+    region: frankfurt          # cel mai aproape de România
+    plan: free
+
+    # Render rulează din rădăcina repo-ului
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+
+    healthCheckPath: /api/v1/health
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3001"
+      # Setează manual în Render Dashboard (nu le punem în repo):
+      # DATABASE_URL, JWT_SECRET, JWT_REFRESH_SECRET, APP_URL

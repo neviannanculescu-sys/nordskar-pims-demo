@@ -19,15 +19,20 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  // În development acceptăm origini multiple (live-server, file://, Cloudflare preview).
-  // În production APP_URL trebuie setat la domeniul exact.
+  // În development acceptăm orice origine (live-server, file://, Cloudflare preview).
+  // În production APP_URL poate fi o listă separată prin virgulă:
+  //   APP_URL=https://nordskar-pims-demo.pages.dev,https://demo.nordskar.ro
   const isDev = (process.env.NODE_ENV ?? 'development') !== 'production';
-  const allowedOrigin = process.env.APP_URL ?? 'http://localhost:3000';
+  const rawAllowed = process.env.APP_URL ?? 'http://localhost:3000';
+  const allowedOrigins = rawAllowed.split(',').map(o => o.trim()).filter(Boolean);
 
   app.enableCors({
     origin: isDev
       ? (origin: string | undefined, cb: (err: null, ok: boolean) => void) => cb(null, true)
-      : allowedOrigin,
+      : (origin: string | undefined, cb: (err: Error | null, ok: boolean) => void) => {
+          if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+          cb(new Error(`CORS: origin ${origin} not allowed`), false);
+        },
     credentials: true,
   });
 

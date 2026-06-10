@@ -11,6 +11,8 @@
     "db:bootstrap:dryrun": "node scripts/bootstrap-db-dryrun.mjs",
     "db:generate": "npm run db:generate --workspace=apps/api",
     "db:migrate": "npm run db:migrate --workspace=apps/api",
-    "db:studio": "npm run db:studio --workspace=apps/api"
+    "db:studio": "npm run db:studio --workspace=apps/api",
+    "build": "npm run build --workspace=apps/api",
+    "start": "node apps/api/dist/src/main.js"
   }
 }

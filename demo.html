@@ -1,0 +1,2356 @@
+?<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nordskar PIMS &#x2192;" Demo</title>
+  <meta name="description" content="Nordskar PIMS &#x2192;" sistem de management pentru clinici veterinare. Demo vizual." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --brand-dark:    #3d2614;
+      --brand-surface: #4f311e;
+      --brand-border:  #6b4228;
+      --brand-gold:    #e2ab3b;
+      --brand-gold-h:  #c9932f;
+      --brand-gold-lt: #fdf3dc;
+      --brand-gold-md: #f9e0a0;
+      --brand-text:    #f5eadb;
+      --brand-muted:   #b89275;
+      --content-bg:    #fdf8f2;
+      --content-card:  #ffffff;
+      --content-border:#e8d5b7;
+      --content-hover: #fef6e8;
+      --text-main:     #2d1a0a;
+      --text-sub:      #6b4a2e;
+    }
+    * { font-family: 'Inter', sans-serif; }
+    body { background: var(--content-bg) !important; color: var(--text-main) !important; }
+
+    /* ---- SIDEBAR ---- */
+    .sidebar-link {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 16px; border-radius: 8px;
+      font-size: 14px; font-weight: 500;
+      color: var(--brand-muted); transition: all 0.15s; cursor: pointer;
+      text-decoration: none;
+    }
+    .sidebar-link:hover { background: var(--brand-surface); color: var(--brand-text); }
+    .sidebar-link.active { background: var(--brand-gold); color: var(--brand-dark); font-weight: 600; }
+    .sidebar-link.active svg { color: var(--brand-dark); }
+
+    /* ---- BADGES ---- */
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 2px 10px; border-radius: 9999px;
+      font-size: 12px; font-weight: 500;
+    }
+
+    /* ---- BUTTONS ---- */
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 16px; background: var(--brand-gold); color: var(--brand-dark);
+      font-size: 14px; font-weight: 600; border-radius: 8px;
+      border: none; cursor: pointer; transition: background 0.15s;
+    }
+    .btn-primary:hover { background: var(--brand-gold-h); }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 16px; background: var(--content-card); color: var(--text-main);
+      font-size: 14px; font-weight: 500; border-radius: 8px;
+      border: 1px solid var(--content-border); cursor: pointer; transition: background 0.15s;
+    }
+    .btn-secondary:hover { background: var(--content-hover); }
+
+    /* ---- CARDS & TABLES ---- */
+    .card { background: var(--content-card); border-radius: 12px; border: 1px solid var(--content-border); box-shadow: 0 1px 4px rgba(61,38,20,.08); }
+    .stat-card { background: var(--content-card); border-radius: 12px; border: 1px solid var(--content-border); box-shadow: 0 1px 4px rgba(61,38,20,.08); padding: 24px; }
+    .table-row { border-bottom: 1px solid #f3e8d8; transition: background 0.1s; }
+    .table-row:hover { background: var(--content-hover); }
+    th { text-align: left; padding: 12px 24px; font-size: 11px; font-weight: 700; color: var(--brand-muted); text-transform: uppercase; letter-spacing: .05em; background: #fdf3e3; border-bottom: 1px solid #eeddbf; }
+    td { padding: 16px 24px; font-size: 14px; color: var(--text-main); }
+
+    /* ---- INPUTS ---- */
+    input, select {
+      width: 100%; padding: 8px 12px; border: 1px solid var(--content-border);
+      border-radius: 8px; font-size: 14px; outline: none; background: #fff;
+      transition: box-shadow 0.15s, border-color 0.15s;
+    }
+    input:focus, select:focus { border-color: var(--brand-gold); box-shadow: 0 0 0 3px rgba(226,171,59,.2); }
+    label { display: block; font-size: 14px; font-weight: 500; color: var(--text-sub); margin-bottom: 4px; }
+    textarea { width: 100%; padding: 8px 12px; border: 1px solid var(--content-border); border-radius: 8px; font-size: 14px; outline: none; resize: vertical; font-family: inherit; background: #fff; }
+    textarea:focus { border-color: var(--brand-gold); box-shadow: 0 0 0 3px rgba(226,171,59,.2); }
+
+    /* ---- MODALS ---- */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(20,10,4,.6);
+      z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px;
+    }
+    .modal { background: var(--content-card); border-radius: 16px; box-shadow: 0 24px 70px rgba(61,38,20,.25); max-width: 520px; width: 100%; padding: 24px; border: 1px solid var(--content-border); }
+    .modal.wide { max-width: 680px; }
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ---- DEMO BANNER ---- */
+    .demo-banner { background: linear-gradient(90deg, var(--brand-dark), var(--brand-surface)); color: var(--brand-gold); text-align: center; font-size: 12px; font-weight: 500; padding: 6px 16px; letter-spacing: .03em; border-bottom: 1px solid var(--brand-border); }
+
+    /* ---- SCROLLBAR (webkit) ---- */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--content-bg); }
+    ::-webkit-scrollbar-thumb { background: var(--content-border); border-radius: 4px; }
+  </style>
+</head>
+<body style="margin:0;">
+
+<!-- DEMO BANNER -->
+<div class="demo-banner">
+  &#x21a; DEMO VIZUAL &#x2192;" Toate datele sunt fictive. Nicio informa&#x21b;ie nu este salvat&#x103;. |
+  <strong>Cont demo:</strong> admin@Nordskar.ro / demo1234
+</div>
+
+<!-- ==================== LOGIN ==================== -->
+<div id="loginPage" style="min-height:calc(100vh - 32px); display:flex; align-items:center; justify-content:center; background:linear-gradient(145deg,#3d2614 0%,#4f311e 50%,#6b4228 100%);">
+  <div style="background:#fff; border-radius:20px; box-shadow:0 28px 90px rgba(20,10,4,.45); padding:40px; width:100%; max-width:380px; border:1px solid #e8d5b7;">
+    <div style="text-align:center; margin-bottom:32px;">
+      <!-- Logo NORDSKAR SVG -->
+      <div style="display:inline-flex;align-items:center;justify-content:center;width:80px;height:80px;background:#3d2614;border-radius:20px;margin-bottom:16px;box-shadow:0 4px 16px rgba(61,38,20,.35);">
+        <svg viewBox="0 0 64 64" width="52" height="52" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- paw / heart shape -->
+          <path d="M32 52 C18 40 10 32 10 22 C10 14 16 8 24 10 C27 11 30 14 32 18 C34 14 37 11 40 10 C48 8 54 14 54 22 C54 32 46 40 32 52Z" fill="#e2ab3b"/>
+          <circle cx="20" cy="14" r="4" fill="#e2ab3b" opacity=".7"/>
+          <circle cx="44" cy="14" r="4" fill="#e2ab3b" opacity=".7"/>
+          <circle cx="14" cy="26" r="3.5" fill="#e2ab3b" opacity=".6"/>
+          <circle cx="50" cy="26" r="3.5" fill="#e2ab3b" opacity=".6"/>
+        </svg>
+      </div>
+      <h1 style="font-size:26px;font-weight:700;color:#3d2614;margin:0 0 4px;letter-spacing:-.5px;">NORDSKAR</h1>
+      <p style="font-size:13px;color:#6b4228;margin:0;font-weight:500;letter-spacing:.05em;">SPITAL VETERINAR · PIMS</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div>
+        <label>Email</label>
+        <input type="email" id="loginEmail" value="admin@Nordskar.ro" placeholder="admin@Nordskar.ro" />
+      </div>
+      <div>
+        <label>Parol&#x103;</label>
+        <input type="password" id="loginPass" value="demo1234" placeholder="Parola" />
+      </div>
+      <p id="loginError" style="color:#dc2626;font-size:13px;display:none;">Email sau parol&#x103; incorecte. Folosi&#x21b;i datele din banner.</p>
+      <button onclick="doLogin()" style="width:100%;padding:12px;background:#e2ab3b;color:#3d2614;font-size:15px;font-weight:700;border:none;border-radius:10px;cursor:pointer;transition:background .15s;letter-spacing:.02em;" onmouseover="this.style.background='#c9932f'" onmouseout="this.style.background='#e2ab3b'">
+        Autentificare &#x2192;'
+      </button>
+    </div>
+    <div style="margin-top:20px;padding:12px;background:#fdf3dc;border-radius:10px;font-size:12px;color:#6b4228;text-align:center;border:1px solid #e8d5b7;">
+      <strong>Cont demo:</strong> admin@Nordskar.ro / demo1234
+    </div>
+  </div>
+</div>
+
+<!-- ==================== APP SHELL ==================== -->
+<div id="appShell" style="display:none; height:calc(100vh - 32px); overflow:hidden;">
+  <div style="display:flex; height:100%;">
+
+    <!-- SIDEBAR -->
+    <aside style="width:232px; background:#3d2614; display:flex; flex-direction:column; flex-shrink:0; box-shadow: 4px 0 16px rgba(20,10,4,.25);">
+      <div style="padding:20px; border-bottom:1px solid #6b4228;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <!-- Mini logo sidebar -->
+          <div style="width:38px;height:38px;background:#e2ab3b;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg viewBox="0 0 32 32" width="24" height="24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M16 27C9 21 5 17 5 11C5 7 8 4 12 5C14 5.5 15 7 16 9C17 7 18 5.5 20 5C24 4 27 7 27 11C27 17 23 21 16 27Z" fill="#3d2614"/>
+              <circle cx="10" cy="7" r="2.2" fill="#3d2614" opacity=".7"/>
+              <circle cx="22" cy="7" r="2.2" fill="#3d2614" opacity=".7"/>
+              <circle cx="7" cy="13" r="2" fill="#3d2614" opacity=".6"/>
+              <circle cx="25" cy="13" r="2" fill="#3d2614" opacity=".6"/>
+            </svg>
+          </div>
+          <div>
+            <div style="color:#f5eadb;font-size:14px;font-weight:700;letter-spacing:.02em;">NORDSKAR</div>
+            <div style="color:#b89275;font-size:10px;letter-spacing:.06em;">SPITAL VETERINAR</div>
+          </div>
+        </div>
+      </div>
+
+      <nav style="flex:1;padding:12px;overflow-y:auto;">
+        <div style="font-size:10px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.08em;padding:8px 16px 6px;">Principal</div>
+        <a onclick="nav('dashboard')" class="sidebar-link active" id="nav-dashboard">
+          <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+          Dashboard
+        </a>
+        <a onclick="nav('clients')" class="sidebar-link" id="nav-clients">
+          <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Clien&#x21b;i
+        </a>
+        <a onclick="nav('animals')" class="sidebar-link" id="nav-animals">
+          <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z"/></svg>
+          Animale
+        </a>
+        <a onclick="nav('appointments')" class="sidebar-link" id="nav-appointments">
+          <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          Program&#x103;ri
+        </a>
+        <a onclick="nav('consultations')" class="sidebar-link" id="nav-consultations">
+          <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          Consulta&#x21b;ii
+        </a>
+        <a onclick="nav('invoices')" class="sidebar-link" id="nav-invoices">
+          <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Facturi
+        </a>
+      </nav>
+
+      <div style="padding:16px;border-top:1px solid #6b4228;display:flex;align-items:center;gap:12px;">
+        <div style="width:34px;height:34px;background:#e2ab3b;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#3d2614;font-size:13px;font-weight:700;flex-shrink:0;">A</div>
+        <div style="flex:1;min-width:0;">
+          <div style="color:#f5eadb;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Dr. Admin Clinic&#x103;</div>
+          <div style="color:#b89275;font-size:11px;">Administrator</div>
+        </div>
+        <button onclick="doLogout()" title="Deconectare" style="background:none;border:none;cursor:pointer;color:#b89275;padding:4px;" onmouseover="this.style.color='#e2ab3b'" onmouseout="this.style.color='#b89275'">
+          <svg style="width:16px;height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main style="flex:1;overflow-y:auto;display:flex;flex-direction:column;">
+
+      <!-- TOP BAR -->
+      <div style="background:#fff;border-bottom:1px solid #e8d5b7;padding:16px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;box-shadow:0 1px 6px rgba(61,38,20,.06);">
+        <div>
+          <h2 id="pageTitle" style="font-size:18px;font-weight:700;color:#2d1a0a;margin:0 0 2px;"></h2>
+          <p id="pageSubtitle" style="font-size:13px;color:#6b4a2e;margin:0;"></p>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="badge" style="background:#dcfce7;color:#166534;">&#x2013; Sistem activ</span>
+          <span class="badge" style="background:#fdf3dc;color:#6b4228;border:1px solid #e8d5b7;">Demo</span>
+        </div>
+      </div>
+
+      <!-- PAGES CONTAINER -->
+      <div style="padding:32px;flex:1;">
+
+        <!-- ==================== DASHBOARD ==================== -->
+        <div id="page-dashboard" class="page active">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
+            <div class="stat-card">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                <span style="font-size:13px;color:#6b4a2e;">Consulta&#x21b;ii azi</span>
+                <div style="width:32px;height:32px;background:#dbeafe;border-radius:8px;display:flex;align-items:center;justify-content:center;">
+                  <svg style="width:16px;height:16px;color:#e2ab3b;" fill="none" stroke="#e2ab3b" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                </div>
+              </div>
+              <div style="font-size:32px;font-weight:700;color:#2d1a0a;">12</div>
+              <div style="font-size:12px;color:#16a34a;margin-top:4px;">&#x2192;' 3 fa&#x21b;&#x103; de ieri</div>
+            </div>
+            <div class="stat-card">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                <span style="font-size:13px;color:#6b4a2e;">Venituri luna</span>
+                <div style="width:32px;height:32px;background:#dcfce7;border-radius:8px;display:flex;align-items:center;justify-content:center;">
+                  <svg style="width:16px;height:16px;" fill="none" stroke="#16a34a" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+              </div>
+              <div style="font-size:32px;font-weight:700;color:#2d1a0a;">18.420</div>
+              <div style="font-size:12px;color:#6b4a2e;margin-top:4px;">RON factura&#x21b;i</div>
+            </div>
+            <div class="stat-card">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                <span style="font-size:13px;color:#6b4a2e;">Restan&#x21b;e</span>
+                <div style="width:32px;height:32px;background:#ffedd5;border-radius:8px;display:flex;align-items:center;justify-content:center;">
+                  <svg style="width:16px;height:16px;" fill="none" stroke="#ea580c" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+              </div>
+              <div style="font-size:32px;font-weight:700;color:#2d1a0a;">2.200</div>
+              <div style="font-size:12px;color:#ea580c;margin-top:4px;">RON neîncasa&#x21b;i</div>
+            </div>
+            <div class="stat-card">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                <span style="font-size:13px;color:#6b4a2e;">Animale active</span>
+                <div style="width:32px;height:32px;background:#f3e8ff;border-radius:8px;display:flex;align-items:center;justify-content:center;">
+                  <svg style="width:16px;height:16px;" fill="none" stroke="#9333ea" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                </div>
+              </div>
+              <div style="font-size:32px;font-weight:700;color:#2d1a0a;">247</div>
+              <div style="font-size:12px;color:#6b4a2e;margin-top:4px;">pacien&#x21b;i înregistra&#x21b;i</div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom:20px;">
+            <div style="padding:16px 24px;border-bottom:1px solid #f3e8d8;display:flex;align-items:center;justify-content:space-between;">
+              <h3 style="font-size:15px;font-weight:600;margin:0;">Program&#x103;ri ast&#x103;zi</h3>
+              <button onclick="nav('appointments')" style="background:none;border:none;color:#e2ab3b;font-size:13px;cursor:pointer;">Vezi toate &#x2192;'</button>
+            </div>
+            <div>
+              <div style="padding:14px 24px;display:flex;align-items:center;gap:16px;border-bottom:1px solid #f8fafc;">
+                <div style="width:8px;height:8px;background:#22c55e;border-radius:50%;flex-shrink:0;"></div>
+                <div style="width:52px;font-size:13px;font-weight:600;color:#5c3d24;">09:00</div>
+                <div style="flex:1;"><strong>Max</strong> <span style="color:#6b4a2e;font-size:13px;">&#x2192;" câine, Labrador</span></div>
+                <div style="font-size:13px;color:#6b4a2e;">Ion Popescu</div>
+                <span class="badge" style="background:#dcfce7;color:#166534;">Confirmat</span>
+              </div>
+              <div style="padding:14px 24px;display:flex;align-items:center;gap:16px;border-bottom:1px solid #f8fafc;">
+                <div style="width:8px;height:8px;background:#3b82f6;border-radius:50%;flex-shrink:0;"></div>
+                <div style="width:52px;font-size:13px;font-weight:600;color:#5c3d24;">10:30</div>
+                <div style="flex:1;"><strong>Luna</strong> <span style="color:#6b4a2e;font-size:13px;">&#x2192;" pisic&#x103;, Persan&#x103;</span></div>
+                <div style="font-size:13px;color:#6b4a2e;">Maria Ionescu</div>
+                <span class="badge" style="background:#dbeafe;color:#6b4228;">&#xee;n a&#x219;teptare</span>
+              </div>
+              <div style="padding:14px 24px;display:flex;align-items:center;gap:16px;border-bottom:1px solid #f8fafc;">
+                <div style="width:8px;height:8px;background:#22c55e;border-radius:50%;flex-shrink:0;"></div>
+                <div style="width:52px;font-size:13px;font-weight:600;color:#5c3d24;">11:00</div>
+                <div style="flex:1;"><strong>Rex</strong> <span style="color:#6b4a2e;font-size:13px;">&#x2192;" câine, Ciobanesc German</span></div>
+                <div style="font-size:13px;color:#6b4a2e;">Andrei Dumitrescu</div>
+                <span class="badge" style="background:#dcfce7;color:#166534;">Confirmat</span>
+              </div>
+              <div style="padding:14px 24px;display:flex;align-items:center;gap:16px;">
+                <div style="width:8px;height:8px;background:#ef4444;border-radius:50%;flex-shrink:0;"></div>
+                <div style="width:52px;font-size:13px;font-weight:600;color:#5c3d24;">14:00</div>
+                <div style="flex:1;"><strong>Bella</strong> <span style="color:#6b4a2e;font-size:13px;">&#x2192;" câine, Golden Retriever</span></div>
+                <div style="font-size:13px;color:#6b4a2e;">Elena Constantin</div>
+                <span class="badge" style="background:#fee2e2;color:#dc2626;">Urgen&#x21b;&#x103;</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div class="card" style="padding:20px;border-left:4px solid #f97316;">
+              <div style="display:flex;align-items:flex-start;gap:12px;">
+                <svg style="width:20px;height:20px;color:#f97316;flex-shrink:0;margin-top:2px;" fill="none" stroke="#f97316" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <div>
+                  <div style="font-size:14px;font-weight:600;color:#2d1a0a;">3 consulta&#x21b;ii nefacturate</div>
+                  <div style="font-size:13px;color:#6b4a2e;margin-top:4px;">Servicii prestate dar neemise pe factur&#x103;. Valoare estimat&#x103;: 450 RON.</div>
+                  <button onclick="nav('consultations')" style="background:none;border:none;color:#ea580c;font-size:13px;cursor:pointer;padding:0;margin-top:8px;">Verific&#x103; &#x2192;'</button>
+                </div>
+              </div>
+            </div>
+            <div class="card" style="padding:20px;border-left:4px solid #3b82f6;">
+              <div style="display:flex;align-items:flex-start;gap:12px;">
+                <svg style="width:20px;height:20px;flex-shrink:0;margin-top:2px;" fill="none" stroke="#3b82f6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <div>
+                  <div style="font-size:14px;font-weight:600;color:#2d1a0a;">1 factur&#x103; în procesare SPV</div>
+                  <div style="font-size:13px;color:#6b4a2e;margin-top:4px;">Factura VET-2026-000045 este în a&#x219;teptare la ANAF e-Factura.</div>
+                  <button onclick="nav('invoices')" style="background:none;border:none;color:#e2ab3b;font-size:13px;cursor:pointer;padding:0;margin-top:8px;">Urm&#x103;re&#x219;te &#x2192;'</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== CLIEN&#x21a;I ==================== -->
+        <div id="page-clients" class="page">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <input type="text" placeholder="Caut&#x103; dup&#x103; nume, email sau telefon&#x2192;" style="max-width:300px;" oninput="filterClients(this.value)" />
+            <button onclick="openAddClientModal('clients')" class="btn-primary">
+              <svg style="width:16px;height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              Client nou
+            </button>
+          </div>
+          <div class="card" style="overflow:hidden;">
+            <table style="width:100%;border-collapse:collapse;">
+              <thead><tr>
+                <th>Client</th><th>Telefon</th><th>Email</th>
+                <th style="text-align:center;">Animale</th><th>Ultima vizit&#x103;</th>
+                <th>Status</th><th></th>
+              </tr></thead>
+              <tbody id="clientsTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ==================== ANIMALE ==================== -->
+        <div id="page-animals" class="page">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <input type="text" placeholder="Caut&#x103; dup&#x103; nume, ras&#x103; sau proprietar&#x2192;" style="max-width:300px;" oninput="filterAnimals(this.value)" />
+            <button onclick="showModal('addAnimal')" class="btn-primary">
+              <svg style="width:16px;height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              Animal nou
+            </button>
+          </div>
+          <div class="card" style="overflow:hidden;">
+            <table style="width:100%;border-collapse:collapse;">
+              <thead><tr>
+                <th>Animal</th><th>Specie / Ras&#x103;</th><th>Proprietar</th>
+                <th>Vârst&#x103;</th><th>Greutate</th><th>Ultima consulta&#x21b;ie</th><th></th>
+              </tr></thead>
+              <tbody id="animalsTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ==================== PROGRAM&#x102;RI ==================== -->
+        <div id="page-appointments" class="page">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <div style="display:flex;gap:8px;">
+              <input type="date" id="apptDate" value="2026-06-09" style="width:auto;" />
+              <select style="width:auto;">
+                <option>To&#x21b;i medicii</option>
+                <option>Dr. Ionescu Alexandru</option>
+                <option>Dr. Popescu Maria</option>
+              </select>
+            </div>
+            <button onclick="showModal('addAppointment')" class="btn-primary">
+              <svg style="width:16px;height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              Programare nou&#x103;
+            </button>
+          </div>
+          <div class="card" style="overflow:hidden;">
+            <table style="width:100%;border-collapse:collapse;">
+              <thead><tr>
+                <th>Or&#x103;</th><th>Animal</th><th>Proprietar</th><th>Motiv</th>
+                <th>Medic</th><th>Cabinet</th><th>Status</th><th></th>
+              </tr></thead>
+              <tbody id="appointmentsTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ==================== CONSULTA&#x21a;II ==================== -->
+        <div id="page-consultations" class="page">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <div style="display:flex;gap:8px;">
+              <input type="text" placeholder="Caut&#x103; consulta&#x21b;ie&#x2192;" style="max-width:260px;" />
+              <select style="width:auto;">
+                <option>Toate statusurile</option>
+                <option>Deschise</option>
+                <option>Semnate</option>
+                <option>Facturate</option>
+              </select>
+            </div>
+            <button onclick="showModal('addConsultation')" class="btn-primary">
+              <svg style="width:16px;height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              Consulta&#x21b;ie nou&#x103;
+            </button>
+          </div>
+          <div class="card" style="overflow:hidden;">
+            <table style="width:100%;border-collapse:collapse;">
+              <thead><tr>
+                <th>Data</th><th>Animal</th><th>Proprietar</th><th>Medic</th>
+                <th>Diagnostic</th><th>Proceduri</th><th>Status</th><th></th>
+              </tr></thead>
+              <tbody id="consultationsTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ==================== FACTURI ==================== -->
+        <div id="page-invoices" class="page">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <div style="display:flex;gap:8px;">
+              <input type="text" placeholder="Caut&#x103; dup&#x103; nr. factur&#x103; sau client&#x2192;" style="max-width:280px;" />
+              <select style="width:auto;" onchange="filterInvoices(this.value)">
+                <option value="">Toate statusurile</option>
+                <option value="draft">Ciorn&#x103;</option>
+                <option value="issued">Emis&#x103;</option>
+                <option value="partially_paid">Par&#x21b;ial pl&#x103;tit&#x103;</option>
+                <option value="paid">Pl&#x103;tit&#x103;</option>
+              </select>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn-secondary" onclick="showModal('exportAccounting')">
+                <svg style="width:16px;height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Export contabilitate
+              </button>
+              <button onclick="openFreshInvoice()" class="btn-primary">
+                <svg style="width:16px;height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                Factur&#x103; nou&#x103;
+              </button>
+            </div>
+          </div>
+          <div class="card" style="overflow:hidden;margin-bottom:16px;">
+            <table style="width:100%;border-collapse:collapse;">
+              <thead><tr>
+                <th>Nr. factur&#x103;</th><th>Client</th><th>Data emiterii</th>
+                <th style="text-align:right;">Total</th><th style="text-align:right;">&#xce;ncasat</th>
+                <th>Status plat&#x103;</th><th>ANAF / SPV</th><th></th>
+              </tr></thead>
+              <tbody id="invoicesTable"></tbody>
+            </table>
+          </div>
+          <div style="background:#fdf8f2;border-radius:10px;border:1px solid #e8d5b7;padding:14px 20px;display:flex;gap:32px;font-size:13px;">
+            <div><span style="color:#6b4a2e;">Total facturat luna curent&#x103;: </span><strong>18.420,00 RON</strong></div>
+            <div><span style="color:#6b4a2e;">Neîncasat: </span><strong style="color:#ea580c;">2.200,00 RON</strong></div>
+            <div><span style="color:#6b4a2e;">Facturi trimise la ANAF: </span><strong>42</strong></div>
+            <div><span style="color:#6b4a2e;">Acceptate ANAF: </span><strong style="color:#16a34a;">41</strong></div>
+          </div>
+        </div>
+
+      </div><!-- /pages -->
+    </main>
+  </div>
+</div>
+
+<!-- ==================== MODAL: FI&#x218;&#x102; CLIENT ==================== -->
+<div id="modal-clientDetails" class="modal-backdrop" style="display:none;" onclick="if(event.target===this)hideModal()">
+  <div class="modal wide" style="max-width:640px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+      <h3 style="font-size:17px;font-weight:600;margin:0;">Fi&#x219;&#x103; client</h3>
+      <button onclick="hideModal()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#b89275;line-height:1;">&#x2013;</button>
+    </div>
+
+    <!-- Header client -->
+    <div style="display:flex;align-items:center;gap:16px;padding:16px;background:#fdf8f2;border-radius:12px;margin-bottom:20px;">
+      <div id="cd-avatar" style="width:52px;height:52px;border-radius:50%;background:#e2ab3b;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:700;flex-shrink:0;"></div>
+      <div style="flex:1;">
+        <div id="cd-name" style="font-size:17px;font-weight:600;color:#2d1a0a;"></div>
+        <div id="cd-status" style="margin-top:4px;"></div>
+      </div>
+    </div>
+
+    <!-- Date de contact -->
+    <div style="margin-bottom:20px;">
+      <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">Date de contact</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div style="padding:12px;background:#fdf8f2;border-radius:8px;">
+          <div style="font-size:11px;color:#b89275;margin-bottom:3px;">Telefon</div>
+          <div id="cd-phone" style="font-size:14px;font-weight:500;color:#2d1a0a;"></div>
+        </div>
+        <div style="padding:12px;background:#fdf8f2;border-radius:8px;">
+          <div style="font-size:11px;color:#b89275;margin-bottom:3px;">Email</div>
+          <div id="cd-email" style="font-size:14px;font-weight:500;color:#2d1a0a;word-break:break-all;"></div>
+        </div>
+        <div style="padding:12px;background:#fdf8f2;border-radius:8px;grid-column:span 2;">
+          <div style="font-size:11px;color:#b89275;margin-bottom:3px;">Adres&#x103;</div>
+          <div id="cd-address" style="font-size:14px;font-weight:500;color:#2d1a0a;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ac&#x21b;iuni rapide -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px;">
+      <button onclick="editClientInline()" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 8px;background:#fdf8f2;border:1px solid #e8d5b7;border-radius:10px;cursor:pointer;font-size:12px;color:#3d2614;font-weight:500;transition:background .15s;" onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background='#f8fafc'">
+        <span style="font-size:20px;">&#x2713;️</span>Editeaz&#x103;
+      </button>
+      <button onclick="addAnimalForCurrentClient()" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 8px;background:#fdf8f2;border:1px solid #e8d5b7;border-radius:10px;cursor:pointer;font-size:12px;color:#3d2614;font-weight:500;transition:background .15s;" onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background='#f8fafc'">
+        <span style="font-size:20px;">&#x1F43E;</span>Animal nou
+      </button>
+      <button onclick="newAppointmentForClient()" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 8px;background:#fdf8f2;border:1px solid #e8d5b7;border-radius:10px;cursor:pointer;font-size:12px;color:#3d2614;font-weight:500;transition:background .15s;" onmouseover="this.style.background='#fef9c3'" onmouseout="this.style.background='#f8fafc'">
+        <span style="font-size:20px;">&#x1F43E;".</span>Programare
+      </button>
+      <button onclick="hideModal();openFreshInvoice()" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 8px;background:#fdf8f2;border:1px solid #e8d5b7;border-radius:10px;cursor:pointer;font-size:12px;color:#3d2614;font-weight:500;transition:background .15s;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#f8fafc'">
+        <span style="font-size:20px;">&#x1F43E;</span>Factur&#x103; nou&#x103;
+      </button>
+    </div>
+
+    <!-- Formular editare client (inline, hidden by default) -->
+    <div id="cd-edit-form" style="display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px;margin-bottom:20px;">
+      <div style="font-size:13px;font-weight:600;color:#92400e;margin-bottom:12px;">Editeaz&#x103; datele clientului</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div><label style="font-size:12px;color:#5c3d24;font-weight:500;">Prenume</label><input id="cd-edit-first" type="text" style="margin-top:4px;" /></div>
+        <div><label style="font-size:12px;color:#5c3d24;font-weight:500;">Nume</label><input id="cd-edit-last" type="text" style="margin-top:4px;" /></div>
+        <div><label style="font-size:12px;color:#5c3d24;font-weight:500;">Telefon</label><input id="cd-edit-phone" type="tel" style="margin-top:4px;" /></div>
+        <div><label style="font-size:12px;color:#5c3d24;font-weight:500;">Email</label><input id="cd-edit-email" type="email" style="margin-top:4px;" /></div>
+        <div style="grid-column:span 2;"><label style="font-size:12px;color:#5c3d24;font-weight:500;">Adres&#x103;</label><input id="cd-edit-address" type="text" style="margin-top:4px;" /></div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="saveClientEdit()" class="btn-primary" style="font-size:13px;padding:6px 14px;">Salveaz&#x103; modific&#x103;rile</button>
+        <button onclick="document.getElementById('cd-edit-form').style.display='none'" class="btn-secondary" style="font-size:13px;padding:6px 14px;">Anuleaz&#x103;</button>
+      </div>
+    </div>
+
+    <!-- Animale -->
+    <div style="margin-bottom:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.07em;">Animale înregistrate</div>
+      </div>
+      <div id="cd-animals" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+
+    <!-- Consulta&#x21b;ii recente -->
+    <div>
+      <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">Consulta&#x21b;ii recente</div>
+      <div id="cd-consultations" style="display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid #f3e8d8;display:flex;justify-content:flex-end;gap:10px;">
+      <button onclick="hideModal()" class="btn-secondary">&#xce;nchide</button>
+      <span></span><!-- footer gol, ac&#x21b;iunile sunt în grid sus -->
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODALS ==================== -->
+
+<div id="modal-addClient" class="modal-backdrop" style="display:none;" onclick="if(event.target===this)hideModal()">
+  <div class="modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+      <h3 style="font-size:17px;font-weight:600;margin:0;">Client nou</h3>
+      <button onclick="hideModal()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#b89275;line-height:1;">&#x2013;</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div><label>Tip</label>
+          <select id="nc-type" onchange="toggleCuiCnp()">
+            <option value="individual">Persoan&#x103; fizic&#x103;</option>
+            <option value="company">Persoan&#x103; juridic&#x103;</option>
+          </select>
+        </div>
+        <div id="nc-cui-wrap" style="display:none;"><label>CUI</label><input id="nc-cui" type="text" placeholder="RO12345678" /></div>
+        <div id="nc-cnp-wrap"><label>CNP (op&#x21b;ional)</label><input id="nc-cnp" type="text" placeholder="1900101&#x2192;" /></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div><label>Prenume / Denumire</label><input id="nc-first" type="text" placeholder="Ion" /></div>
+        <div id="nc-last-wrap"><label>Nume</label><input id="nc-last" type="text" placeholder="Popescu" /></div>
+      </div>
+      <div><label>Telefon</label><input id="nc-phone" type="tel" placeholder="07XX XXX XXX" /></div>
+      <div><label>Email</label><input id="nc-email" type="email" placeholder="ion@email.ro" /></div>
+      <div><label>Adres&#x103; (op&#x21b;ional)</label><input id="nc-address" type="text" placeholder="Str. Exemplu, nr. 1, Cluj-Napoca" /></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:24px;">
+      <button onclick="addDemoClient()" class="btn-primary" style="flex:1;justify-content:center;">Salveaz&#x103; clientul</button>
+      <button onclick="cancelAddClient()" class="btn-secondary">Anuleaz&#x103;</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-addAnimal" class="modal-backdrop" style="display:none;" onclick="if(event.target===this)hideModal()">
+  <div class="modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+      <h3 style="font-size:17px;font-weight:600;margin:0;">Animal nou</h3>
+      <button onclick="hideModal()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#b89275;line-height:1;">&#x2013;</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div><label>Nume animal *</label><input id="na-name" type="text" placeholder="Max" /></div>
+        <div><label>Specie</label><select id="na-species"><option>Câine</option><option>Pisic&#x103;</option><option>Iepure</option><option>Pas&#x103;re</option><option>Alt&#x103;</option></select></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div><label>Ras&#x103;</label><input id="na-breed" type="text" placeholder="Labrador" /></div>
+        <div><label>Sex</label><select id="na-sex"><option>Mascul</option><option>Femel&#x103;</option></select></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div><label>Data na&#x219;terii</label><input id="na-birth" type="date" /></div>
+        <div><label>Greutate (kg)</label><input id="na-weight" type="number" placeholder="12.5" step="0.1" /></div>
+      </div>
+      <div>
+        <label style="display:flex;align-items:center;justify-content:space-between;">
+          Proprietar *
+          <span id="na-owner-badge" style="font-size:11px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;display:none;">Pre-selectat</span>
+        </label>
+        <select id="na-owner"><option value="">&#x2192; Selecteaz&#x103; proprietar</option></select>
+      </div>
+      <div><label>Nr. microcip</label><input id="na-microchip" type="text" placeholder="123456789012345" /></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:24px;">
+      <button onclick="saveDemoAnimal()" class="btn-primary" style="flex:1;justify-content:center;">Salveaz&#x103; animalul</button>
+      <button onclick="cancelAddAnimal()" class="btn-secondary">Anuleaz&#x103;</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-addAppointment" class="modal-backdrop" style="display:none;" onclick="if(event.target===this)hideModal()">
+  <div class="modal" style="max-width:520px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+      <h3 style="font-size:17px;font-weight:600;margin:0;">Programare nou&#x103;</h3>
+      <button onclick="hideModal()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#b89275;line-height:1;">&#x2013;</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div><label>Data</label><input id="appt-date" type="date" value="2026-06-10" /></div>
+        <div><label>Ora</label><input id="appt-time" type="time" value="10:00" /></div>
+      </div>
+      <div>
+        <label style="display:flex;align-items:center;justify-content:space-between;">
+          Animal (pacient)
+          <button type="button" onclick="openAddAnimalFromAppointment()"
+            style="font-size:12px;font-weight:500;color:#e2ab3b;background:none;border:none;cursor:pointer;padding:0;">
+            < Animal nou
+          </button>
+        </label>
+        <select id="appt-animal">
+          <option value="">&#x2192;" Selecteaz&#x103; animal &#x2192;"</option>
+        </select>
+      </div>
+      <div>
+        <label>Medic curant</label>
+        <select id="appt-vet">
+          <option value="Dr. Ionescu Alexandru">Dr. Ionescu Alexandru</option>
+          <option value="Dr. Popescu Maria">Dr. Popescu Maria</option>
+        </select>
+      </div>
+      <div>
+        <label>Cabinet</label>
+        <select id="appt-room">
+          <option value="Cabinet 1">Cabinet 1</option>
+          <option value="Cabinet 2">Cabinet 2</option>
+          <option value="Sala de opera&#x21b;ii">Sala de opera&#x21b;ii</option>
+          <option value="Radiologie">Radiologie</option>
+          <option value="Laborator">Laborator</option>
+        </select>
+      </div>
+      <div>
+        <label>Motiv programare</label>
+        <input id="appt-reason" type="text" placeholder="Ex: vaccinare anual&#x103;, consulta&#x21b;ie general&#x103;&#x2192;" />
+      </div>
+      <div>
+        <label>Prioritate</label>
+        <select id="appt-status">
+          <option value="confirmed">Confirmat</option>
+          <option value="pending">&#xee;n a&#x219;teptare</option>
+          <option value="urgent">Urgen&#x21b;&#x103;</option>
+        </select>
+      </div>
+      <div><label>Observa&#x21b;ii interne</label><input id="appt-notes" type="text" placeholder="Informa&#x21b;ii suplimentare pentru echip&#x103;&#x2192;" /></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:24px;">
+      <button onclick="saveAppointment()" class="btn-primary" style="flex:1;justify-content:center;">Salveaz&#x103; programarea</button>
+      <button onclick="hideModal()" class="btn-secondary">Anuleaz&#x103;</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-addConsultation" class="modal-backdrop" style="display:none;" onclick="if(event.target===this)hideModal()">
+  <div class="modal wide">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+      <h3 style="font-size:17px;font-weight:600;margin:0;">Consulta&#x21b;ie nou&#x103;</h3>
+      <button onclick="hideModal()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#b89275;line-height:1;">&#x2013;</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div><label>Animal (pacient)</label><select><option>Max &#x2192;" Câine (Ion Popescu)</option><option>Luna &#x2192;" Pisic&#x103; (Maria Ionescu)</option><option>Bella &#x2192;" Câine (Elena Constantin)</option></select></div>
+        <div><label>Medic curant</label><select><option>Dr. Ionescu Alexandru</option><option>Dr. Popescu Maria</option></select></div>
+      </div>
+      <div><label>Motiv prezentare</label><input type="text" placeholder="Descrie motivul consulta&#x21b;iei&#x2192;" /></div>
+      <div><label>Anamnez&#x103;</label><textarea rows="2" placeholder="Istoric medical relevant, medicamente administrate recent&#x2192;"></textarea></div>
+      <div><label>Examen clinic</label><textarea rows="2" placeholder="Temperatur&#x103;, greutate, aspecte clinice observate&#x2192;"></textarea></div>
+      <div><label>Diagnostic</label><input type="text" placeholder="Diagnostic principal (ex: otit&#x103; extern&#x103; bilateral&#x103;)&#x2192;" /></div>
+      <div><label>Plan de tratament</label><textarea rows="2" placeholder="Medicamente prescrise, doze, durat&#x103; tratament, recomand&#x103;ri&#x2192;"></textarea></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:24px;">
+      <button onclick="hideModal();showToast('Consulta&#x21b;ie deschis&#x103; cu succes!')" class="btn-primary" style="flex:1;justify-content:center;">Deschide consulta&#x21b;ia</button>
+      <button onclick="hideModal()" class="btn-secondary">Anuleaz&#x103;</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-addInvoice" class="modal-backdrop" style="display:none;" onclick="if(event.target===this)hideModal()">
+  <div class="modal wide" style="max-width:660px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+      <h3 style="font-size:17px;font-weight:600;margin:0;">Factur&#x103; nou&#x103;</h3>
+      <button onclick="hideModal()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#b89275;line-height:1;">&#x2013;</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label style="display:flex;align-items:center;justify-content:space-between;">
+            Client
+            <button type="button" onclick="openAddClientModal('invoice')"
+              style="font-size:12px;font-weight:500;color:#e2ab3b;background:none;border:none;cursor:pointer;padding:0;line-height:1;">
+              < Client nou
+            </button>
+          </label>
+          <select id="inv-client">
+            <option value="">&#x2192;" Selecteaz&#x103; client &#x2192;"</option>
+            <option>Ion Popescu</option><option>Maria Ionescu</option>
+            <option>Andrei Dumitrescu</option><option>Elena Constantin</option>
+            <option>Cabinet Vet Dr. Ionescu SRL</option><option>Alexandru Munteanu</option>
+          </select>
+          <span id="inv-client-badge" style="display:none;margin-top:5px;font-size:11px;font-weight:500;color:#166534;background:#dcfce7;border-radius:6px;padding:2px 8px;"></span>
+        </div>
+        <div>
+          <label>Serie factur&#x103;</label>
+          <input type="text" id="inv-series" value="VET" />
+        </div>
+      </div>
+      <div>
+        <label>Consulta&#x21b;ie de facturat (op&#x21b;ional)</label>
+        <select id="inv-consult">
+          <option value="">&#x2192;" F&#x103;r&#x103; consulta&#x21b;ie asociat&#x103; &#x2192;"</option>
+          <option>09.06.2026 &#x2192;" Max, vaccinare (Dr. Ionescu)</option>
+          <option>07.06.2026 &#x2192;" Luna, control post-operator (Dr. Popescu)</option>
+          <option>03.06.2026 &#x2192;" Bella, endoscopie (Dr. Ionescu)</option>
+        </select>
+      </div>
+
+      <!-- Linii factur&#x103; dinamice -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <label style="margin:0;">Linii factur&#x103;</label>
+          <button onclick="addInvoiceLine()" style="background:none;border:1px dashed #cbd5e1;color:#e2ab3b;font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer;">+ Adaug&#x103; linie</button>
+        </div>
+        <div style="border:1px solid #e8d5b7;border-radius:10px;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:1fr 60px 90px 32px;gap:0;background:#fdf8f2;padding:8px 12px;font-size:11px;font-weight:600;color:#b89275;text-transform:uppercase;letter-spacing:.05em;">
+            <span>Descriere serviciu / produs</span><span style="text-align:right;">Cant.</span><span style="text-align:right;">Pre&#x21b; unit. RON</span><span></span>
+          </div>
+          <div id="inv-lines-body"></div>
+          <div style="padding:10px 12px;border-top:2px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:13px;color:#6b4a2e;">Total cu TVA 9%</span>
+            <span id="inv-total" style="font-size:16px;font-weight:700;color:#2d1a0a;">0,00 RON</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:24px;">
+      <button onclick="emiteFactura()" class="btn-primary" style="flex:1;justify-content:center;">Emite factura</button>
+      <button onclick="salveazaCiorna()" class="btn-secondary">Salveaz&#x103; ciorn&#x103;</button>
+      <button onclick="hideModal()" class="btn-secondary">Anuleaz&#x103;</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: FI&#x218;&#x102; ANIMAL ==================== -->
+<div id="modal-animalProfile" class="modal-backdrop" style="display:none;" onclick="if(event.target===this)hideModal()">
+  <div class="modal wide" style="max-width:640px;max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <h3 style="font-size:17px;font-weight:600;margin:0;">Fi&#x219;&#x103; medical&#x103; animal</h3>
+      <button onclick="hideModal()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#b89275;line-height:1;">&#x2013;</button>
+    </div>
+    <div id="ap-header" style="display:flex;align-items:center;gap:16px;padding:16px;background:#fdf8f2;border-radius:12px;margin-bottom:20px;"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;" id="ap-info"></div>
+    <div style="margin-bottom:20px;">
+      <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">Vaccin&#x103;ri</div>
+      <div id="ap-vaccines" style="display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+
+    <!-- TRATAMENTE -->
+    <div style="margin-bottom:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.07em;">Tratamente active</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button id="btn-quick-print" type="button" onclick="quickPrintTreatments()"
+            style="font-size:12px;font-weight:500;color:#5c3d24;background:none;border:1px solid #e8d5b7;border-radius:6px;padding:3px 10px;cursor:pointer;display:flex;align-items:center;gap:5px;">
+            <svg style="width:13px;height:13px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+            Quick print
+          </button>
+          <button type="button" onclick="toggleTreatmentForm()"
+            style="font-size:12px;font-weight:500;color:#e2ab3b;background:none;border:1px dashed #bfdbfe;border-radius:6px;padding:3px 10px;cursor:pointer;">
+            < Tratament nou
+          </button>
+        </div>
+      </div>
+
+      <!-- Formular inline ad&#x103;ugare tratament -->
+      <div id="ap-treatment-form" style="display:none;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:14px;margin-bottom:10px;">
+        <div style="font-size:13px;font-weight:600;color:#0369a1;margin-bottom:10px;">Tratament nou</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div>
+            <label style="font-size:12px;color:#5c3d24;font-weight:500;">Medicament / Produs</label>
+            <input id="tr-drug" type="text" placeholder="Ex: Amoxicilin&#x103; 500mg" style="margin-top:4px;" />
+          </div>
+          <div>
+            <label style="font-size:12px;color:#5c3d24;font-weight:500;">Doz&#x103;</label>
+            <input id="tr-dose" type="text" placeholder="Ex: 1 comprimat" style="margin-top:4px;" />
+          </div>
+          <div>
+            <label style="font-size:12px;color:#5c3d24;font-weight:500;">Frecven&#x21b;&#x103;</label>
+            <input id="tr-freq" type="text" placeholder="Ex: de 2x/zi" style="margin-top:4px;" />
+          </div>
+          <div>
+            <label style="font-size:12px;color:#5c3d24;font-weight:500;">Durat&#x103;</label>
+            <input id="tr-duration" type="text" placeholder="Ex: 7 zile" style="margin-top:4px;" />
+          </div>
+          <div>
+            <label style="font-size:12px;color:#5c3d24;font-weight:500;">Cantitate (dispensat&#x103;)</label>
+            <input id="tr-qty" type="text" placeholder="Ex: 14 comprimate" style="margin-top:4px;" />
+          </div>
+          <div>
+            <label style="font-size:12px;color:#5c3d24;font-weight:500;">Medic prescriptor</label>
+            <select id="tr-vet" style="margin-top:4px;">
+              <option>Dr. Ionescu Alexandru</option>
+              <option>Dr. Popescu Maria</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-bottom:10px;">
+          <label style="font-size:12px;color:#5c3d24;font-weight:500;">Observa&#x21b;ii</label>
+          <input id="tr-notes" type="text" placeholder="Ex: administrat cu mâncare, evita&#x21b;i expunerea la soare&#x2192;" style="margin-top:4px;" />
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="saveTreatmentLine()" class="btn-primary" style="font-size:13px;padding:6px 14px;">Salveaz&#x103; tratamentul</button>
+          <button onclick="toggleTreatmentForm()" class="btn-secondary" style="font-size:13px;padding:6px 14px;">Anuleaz&#x103;</button>
+        </div>
+      </div>
+
+      <div id="ap-treatments" style="display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+
+    <div>
+      <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">Consulta&#x21b;ii anterioare</div>
+      <div id="ap-consultations" style="display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid #f3e8d8;display:flex;gap:10px;justify-content:flex-end;">
+      <button onclick="hideModal()" class="btn-secondary">&#xce;nchide</button>
+      <button onclick="hideModal();showModal('addAppointment')" class="btn-primary">Programare nou&#x103;</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: DETALII CONSULTA&#x21a;IE ==================== -->
+<div id="modal-consultationDetails" class="modal-backdrop" style="display:none;" onclick="if(event.target===this)hideModal()">
+  <div class="modal wide" style="max-width:640px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <h3 style="font-size:17px;font-weight:600;margin:0;">Consulta&#x21b;ie</h3>
+      <button onclick="hideModal()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#b89275;line-height:1;">&#x2013;</button>
+    </div>
+    <div id="cons-header" style="display:flex;align-items:center;gap:12px;padding:14px;background:#fdf8f2;border-radius:10px;margin-bottom:18px;"></div>
+    <div style="display:flex;flex-direction:column;gap:14px;" id="cons-body"></div>
+    <div id="cons-actions" style="margin-top:20px;padding-top:16px;border-top:1px solid #f3e8d8;display:flex;gap:10px;justify-content:flex-end;"></div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: DETALII FACTUR&#x102; ==================== -->
+<div id="modal-invoiceDetails" class="modal-backdrop" style="display:none;" onclick="if(event.target===this)hideModal()">
+  <div class="modal wide" style="max-width:640px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <h3 style="font-size:17px;font-weight:600;margin:0;">Detalii factur&#x103;</h3>
+      <button onclick="hideModal()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#b89275;line-height:1;">&#x2013;</button>
+    </div>
+    <div id="inv-detail-header" style="padding:16px;background:#fdf8f2;border-radius:12px;margin-bottom:18px;"></div>
+    <div style="border:1px solid #e8d5b7;border-radius:10px;overflow:hidden;margin-bottom:14px;">
+      <div style="display:grid;grid-template-columns:1fr 60px 90px 90px;background:#fdf8f2;padding:8px 16px;font-size:11px;font-weight:600;color:#b89275;text-transform:uppercase;letter-spacing:.05em;">
+        <span>Serviciu / Produs</span><span style="text-align:right;">Cant.</span><span style="text-align:right;">Pre&#x21b; unit.</span><span style="text-align:right;">Total</span>
+      </div>
+      <div id="inv-detail-lines"></div>
+      <div id="inv-detail-totals" style="padding:12px 16px;border-top:2px solid #e2e8f0;"></div>
+    </div>
+    <div id="inv-detail-spv" style="padding:12px 14px;border-radius:8px;margin-bottom:14px;font-size:13px;"></div>
+    <div id="inv-detail-actions" style="display:flex;gap:10px;justify-content:flex-end;"></div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: EXPORT CONTABILITATE ==================== -->
+<div id="modal-exportAccounting" class="modal-backdrop" style="display:none;" onclick="if(event.target===this)hideModal()">
+  <div class="modal" style="max-width:480px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <h3 style="font-size:17px;font-weight:600;margin:0;">Export contabilitate</h3>
+      <button onclick="hideModal()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#b89275;line-height:1;">&#x2013;</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div><label>Dat&#x103; start</label><input type="date" id="exp-from" value="2026-06-01" /></div>
+        <div><label>Dat&#x103; sfâr&#x219;it</label><input type="date" id="exp-to" value="2026-06-30" /></div>
+      </div>
+      <div><label>Format export</label>
+        <select id="exp-format">
+          <option value="csv">CSV &#x2192;" compatibil Saga C / WinMentor</option>
+          <option value="csv_pay">CSV &#x2192;" Jurnal încas&#x103;ri</option>
+        </select>
+      </div>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;font-size:13px;color:#166534;">
+        <strong>7 facturi</strong> în perioada selectat&#x103; · Total: <strong>18.420,00 RON</strong>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="downloadExportCsv()" class="btn-primary" style="flex:1;justify-content:center;">
+        <svg style="width:15px;height:15px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        Descarc&#x103; fi&#x219;ierul
+      </button>
+      <button onclick="hideModal()" class="btn-secondary">Anuleaz&#x103;</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" style="position:fixed;bottom:24px;right:24px;background:#0f172a;color:#fff;padding:12px 20px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.2);font-size:14px;font-weight:500;transform:translateY(80px);opacity:0;transition:all .3s;z-index:100;display:flex;align-items:center;gap:8px;">
+  <svg style="width:16px;height:16px;color:#4ade80;flex-shrink:0;" fill="none" stroke="#4ade80" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+  <span id="toastMsg"></span>
+</div>
+
+<script>
+// ============================================================
+// DATE DEMO
+// ============================================================
+
+const clients = [
+  { id:1, firstName:'Ion',      lastName:'Popescu',      phone:'0722 345 678', email:'ion.popescu@gmail.com',    address:'Cluj-Napoca',  animals:2, lastVisit:'08.06.2026', active:true },
+  { id:2, firstName:'Maria',    lastName:'Ionescu',      phone:'0731 456 789', email:'maria.ionescu@yahoo.ro',   address:'Bucure&#x219;ti',    animals:1, lastVisit:'05.06.2026', active:true },
+  { id:3, firstName:'Andrei',   lastName:'Dumitrescu',   phone:'0745 567 890', email:'a.dumitrescu@email.ro',    address:'Timi&#x219;oara',    animals:3, lastVisit:'01.06.2026', active:true },
+  { id:4, firstName:'Elena',    lastName:'Constantin',   phone:'0756 678 901', email:'elena.c@gmail.com',        address:'Bra&#x219;ov',       animals:1, lastVisit:'28.05.2026', active:true },
+  { id:5, firstName:'Cabinet Vet Dr. Ionescu', lastName:'SRL', phone:'0264 123 456', email:'office@vetionescu.ro', address:'Cluj-Napoca', animals:0, lastVisit:'03.06.2026', active:true },
+  { id:6, firstName:'Alexandru', lastName:'Munteanu',    phone:'0771 789 012', email:'alex.m@hotmail.com',       address:'Ia&#x219;i',         animals:2, lastVisit:'25.05.2026', active:false },
+];
+
+const animals = [
+  { id:1, name:'Max',   species:'Câine',  breed:'Labrador Retriever',   owner:'Ion Popescu',       age:'3 ani',  weight:'28,0 kg', lastConsult:'08.06.2026', microchip:'985...' },
+  { id:2, name:'Milo',  species:'Câine',  breed:'Bichon Frisé',         owner:'Ion Popescu',       age:'5 ani',  weight:'5,2 kg',  lastConsult:'15.05.2026', microchip:'983...' },
+  { id:3, name:'Luna',  species:'Pisic&#x103;', breed:'Persan&#x103;',               owner:'Maria Ionescu',     age:'2 ani',  weight:'4,1 kg',  lastConsult:'05.06.2026', microchip:'984...' },
+  { id:4, name:'Rex',   species:'Câine',  breed:'Ciobanesc German',      owner:'Andrei Dumitrescu', age:'7 ani',  weight:'35,0 kg', lastConsult:'01.06.2026', microchip:'982...' },
+  { id:5, name:'Bella', species:'Câine',  breed:'Golden Retriever',      owner:'Elena Constantin',  age:'4 ani',  weight:'30,0 kg', lastConsult:'28.05.2026', microchip:'986...' },
+  { id:6, name:'Nemo',  species:'Pisic&#x103;', breed:'British Shorthair',     owner:'Andrei Dumitrescu', age:'1 an',   weight:'3,8 kg',  lastConsult:'20.05.2026', microchip:'987...' },
+  { id:7, name:'Oscar', species:'Câine',  breed:'Pudel Miniatur',        owner:'Andrei Dumitrescu', age:'6 ani',  weight:'8,5 kg',  lastConsult:'18.05.2026', microchip:'988...' },
+];
+
+const appointments = [
+  { time:'09:00', animal:'Max',   species:'Câine',  owner:'Ion Popescu',       reason:'Vaccinare anual&#x103;',                    vet:'Dr. Ionescu',  room:'Cabinet 1', status:'confirmed' },
+  { time:'10:30', animal:'Luna',  species:'Pisic&#x103;', owner:'Maria Ionescu',     reason:'Control post-operator',               vet:'Dr. Popescu',  room:'Cabinet 2', status:'pending' },
+  { time:'11:00', animal:'Rex',   species:'Câine',  owner:'Andrei Dumitrescu', reason:'Consulta&#x21b;ie general&#x103;',                vet:'Dr. Ionescu',  room:'Cabinet 1', status:'confirmed' },
+  { time:'13:00', animal:'Oscar', species:'Câine',  owner:'Andrei Dumitrescu', reason:'Deparazitare &#x219;i antiparazitar extern', vet:'Dr. Popescu',  room:'Cabinet 2', status:'confirmed' },
+  { time:'14:00', animal:'Bella', species:'Câine',  owner:'Elena Constantin',  reason:'URGEN&#x21a;&#x102; &#x2192;" v&#x103;rs&#x103;turi persistente',     vet:'Dr. Ionescu',  room:'Sala de opera&#x21b;ii', status:'urgent' },
+  { time:'15:30', animal:'Milo',  species:'Câine',  owner:'Ion Popescu',       reason:'Detartraj dentar',                    vet:'Dr. Popescu',  room:'Cabinet 2', status:'pending' },
+];
+
+const consultations = [
+  { date:'09.06.2026', animal:'Max',   owner:'Ion Popescu',       vet:'Dr. Ionescu', diagnosis:'S&#x103;n&#x103;tos. Vaccinat antirabic + leptospiroz&#x103;.', procedures:'Vaccinare, deparazitare intern&#x103;',  status:'signed', billed:false },
+  { date:'08.06.2026', animal:'Rex',   owner:'Andrei Dumitrescu', vet:'Dr. Ionescu', diagnosis:'Otit&#x103; extern&#x103; bilateral&#x103;.',                    procedures:'Consulta&#x21b;ie, cur&#x103;&#x21b;are urechi, tratament local', status:'signed', billed:true  },
+  { date:'07.06.2026', animal:'Luna',  owner:'Maria Ionescu',     vet:'Dr. Popescu', diagnosis:'Control post-sterilizare &#x2192;" evolu&#x21b;ie bun&#x103;.',    procedures:'Consulta&#x21b;ie, schimbare pansament',  status:'signed', billed:true  },
+  { date:'05.06.2026', animal:'Nemo',  owner:'Andrei Dumitrescu', vet:'Dr. Popescu', diagnosis:'Gastrit&#x103; acut&#x103; &#x2192;" tratament în curs.',          procedures:'Consulta&#x21b;ie, perfuzie i.v., antiemetice', status:'open',   billed:false },
+  { date:'03.06.2026', animal:'Bella', owner:'Elena Constantin',  vet:'Dr. Ionescu', diagnosis:'Corp str&#x103;in în esofag &#x2192;" extras cu succes.',    procedures:'Endoscopie, extragere corp str&#x103;in, anestezie general&#x103;', status:'signed', billed:false },
+  { date:'01.06.2026', animal:'Oscar', owner:'Andrei Dumitrescu', vet:'Dr. Popescu', diagnosis:'Dermatit&#x103; alergic&#x103; sezonier&#x103;.',                 procedures:'Consulta&#x21b;ie, biopsie cutanat&#x103;, antihistaminice', status:'signed', billed:true  },
+];
+
+const invoices = [
+  { number:'VET-2026-000047', client:'Andrei Dumitrescu',          date:'08.06.2026', total:'285,00',   paid:'285,00',   status:'paid',           spv:'accepted'  },
+  { number:'VET-2026-000046', client:'Maria Ionescu',              date:'07.06.2026', total:'195,50',   paid:'100,00',   status:'partially_paid', spv:'accepted'  },
+  { number:'VET-2026-000045', client:'Ion Popescu',                date:'05.06.2026', total:'450,00',   paid:'0,00',     status:'issued',         spv:'processing' },
+  { number:'VET-2026-000044', client:'Elena Constantin',           date:'03.06.2026', total:'720,00',   paid:'720,00',   status:'paid',           spv:'accepted'  },
+  { number:'VET-2026-000043', client:'Andrei Dumitrescu',          date:'01.06.2026', total:'165,00',   paid:'165,00',   status:'paid',           spv:'accepted'  },
+  { number:'VET-2026-000042', client:'Cabinet Vet Dr. Ionescu SRL',date:'28.05.2026', total:'1.240,00', paid:'1.240,00', status:'paid',           spv:'accepted'  },
+  { number:'VET-2026-000041', client:'Ion Popescu',                date:'25.05.2026', total:'87,50',    paid:'0,00',     status:'draft',          spv:'&#x2192;"'         },
+];
+
+// ============================================================
+// LOGIC&#x102;
+// ============================================================
+
+function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  if (email === 'admin@Nordskar.ro' && pass === 'demo1234') {
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('appShell').style.display = 'block';
+    renderAll();
+  } else {
+    document.getElementById('loginError').style.display = 'block';
+  }
+}
+
+function doLogout() {
+  document.getElementById('appShell').style.display = 'none';
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('loginError').style.display = 'none';
+}
+
+function setSubtitle() {
+  const days = ['Duminic&#x103;','Luni','Mar&#x21b;i','Miercuri','Joi','Vineri','Sâmb&#x103;t&#x103;'];
+  const months = ['ianuarie','februarie','martie','aprilie','mai','iunie','iulie','august','septembrie','octombrie','noiembrie','decembrie'];
+  const now = new Date();
+  document.getElementById('pageSubtitle').textContent =
+    `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+}
+
+function nav(page) {
+  document.querySelectorAll('.page').forEach(p => { p.style.display='none'; p.classList.remove('active'); });
+  const el = document.getElementById('page-' + page);
+  el.style.display = 'block'; el.classList.add('active');
+  document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+  document.getElementById('nav-' + page).classList.add('active');
+  const titles = {
+    dashboard:     ['Dashboard',    null],
+    clients:       ['Clien&#x21b;i',      `${clients.length} clien&#x21b;i înregistra&#x21b;i`],
+    animals:       ['Animale',      `${animals.length} pacien&#x21b;i înregistra&#x21b;i`],
+    appointments:  ['Program&#x103;ri',   'Ast&#x103;zi &#x2192;" 9 Iunie 2026'],
+    consultations: ['Consulta&#x21b;ii',  '6 consulta&#x21b;ii recente'],
+    invoices:      ['Facturi',      'Jurnal vânz&#x103;ri'],
+  };
+  document.getElementById('pageTitle').textContent = titles[page][0];
+  if (titles[page][1]) {
+    document.getElementById('pageSubtitle').textContent = titles[page][1];
+  } else {
+    setSubtitle();
+  }
+}
+
+function renderAll() {
+  setSubtitle();
+  renderClients(clients);
+  renderAnimals(animals);
+  renderAppointments();
+  renderConsultations();
+  renderInvoices(invoices);
+}
+
+// ---- CLIEN&#x21a;I ----
+function renderClients(data) {
+  document.getElementById('clientsTable').innerHTML = data.map(c => `
+    <tr class="table-row">
+      <td>
+        <div style="font-weight:500;">${c.firstName} ${c.lastName}</div>
+        <div style="font-size:12px;color:#b89275;">${c.address}</div>
+      </td>
+      <td style="color:#5c3d24;">${c.phone}</td>
+      <td style="color:#5c3d24;">${c.email}</td>
+      <td style="text-align:center;font-weight:600;color:#e2ab3b;">${c.animals}</td>
+      <td style="color:#6b4a2e;">${c.lastVisit}</td>
+      <td><span class="badge" style="${c.active ? 'background:#dcfce7;color:#166534;' : 'background:#fdf3e3;color:#6b4a2e;'}">${c.active ? 'Activ' : 'Inactiv'}</span></td>
+      <td style="text-align:right;"><button onclick="showClientDetails(${c.id})" style="background:none;border:none;color:#e2ab3b;font-size:12px;cursor:pointer;text-decoration:underline;">Fi&#x219;&#x103; client</button></td>
+    </tr>`).join('');
+}
+function filterClients(q) {
+  renderClients(clients.filter(c => `${c.firstName} ${c.lastName} ${c.email} ${c.phone}`.toLowerCase().includes(q.toLowerCase())));
+}
+// Sursa de unde s-a deschis modal-addClient: 'clients' sau 'invoice'
+let _addClientSource = 'clients';
+
+function openAddClientModal(source) {
+  _addClientSource = source || 'clients';
+  // Reset form
+  ['nc-first','nc-last','nc-phone','nc-email','nc-address','nc-cui','nc-cnp'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  const typeEl = document.getElementById('nc-type');
+  if (typeEl) { typeEl.value = 'individual'; toggleCuiCnp(); }
+
+  if (source === 'invoice') {
+    // Ascunde NUMAI factura (nu toate modalele) &#x2192;" datele din form r&#x103;mân în DOM
+    const inv = document.getElementById('modal-addInvoice');
+    if (inv) inv.style.display = 'none';
+    // Afi&#x219;eaz&#x103; direct modalul de client (f&#x103;r&#x103; showModal, ca s&#x103; nu triggere initInvoiceLines)
+    const cl = document.getElementById('modal-addClient');
+    if (cl) cl.style.display = 'flex';
+  } else {
+    showModal('addClient');
+  }
+}
+
+function toggleCuiCnp() {
+  const isCompany = document.getElementById('nc-type')?.value === 'company';
+  document.getElementById('nc-cui-wrap').style.display  = isCompany ? 'block' : 'none';
+  document.getElementById('nc-cnp-wrap').style.display  = isCompany ? 'none'  : 'block';
+  const lastWrap = document.getElementById('nc-last-wrap');
+  if (lastWrap) lastWrap.style.display = isCompany ? 'none' : 'block';
+  const firstLabel = document.querySelector('#nc-first')?.previousElementSibling;
+  if (firstLabel) firstLabel.textContent = isCompany ? 'Denumire firm&#x103;' : 'Prenume';
+}
+
+function cancelAddClient() {
+  const cl = document.getElementById('modal-addClient');
+  if (cl) cl.style.display = 'none';
+  if (_addClientSource === 'invoice') {
+    // Redeschide factura F&#x102;R&#x102; a reseta liniile (nu apel&#x103;m showModal)
+    const inv = document.getElementById('modal-addInvoice');
+    if (inv) inv.style.display = 'flex';
+  }
+}
+
+function addDemoClient() {
+  const type  = document.getElementById('nc-type')?.value || 'individual';
+  const first = document.getElementById('nc-first')?.value.trim() || '';
+  const last  = document.getElementById('nc-last')?.value.trim()  || '';
+  const phone = document.getElementById('nc-phone')?.value.trim() || '';
+  const email = document.getElementById('nc-email')?.value.trim() || '';
+  const address = document.getElementById('nc-address')?.value.trim() || '';
+  const cui   = document.getElementById('nc-cui')?.value.trim()   || '';
+
+  if (!first) { showToast('&#x21a;️ Introduce&#x21b;i prenumele / denumirea!'); return; }
+
+  const fullName = type === 'company' ? first : `${first}${last ? ' ' + last : ''}`;
+
+  // Adaug&#x103; în array-ul de clien&#x21b;i
+  const newId = clients.length ? Math.max(...clients.map(c => c.id)) + 1 : 10;
+  clients.push({ id: newId, firstName: first, lastName: last, phone, email, address, animals: 0, lastVisit: '&#x2192;"', active: true });
+  renderClients(clients);
+
+  // &#xce;nchide modalul de client
+  const cl = document.getElementById('modal-addClient');
+  if (cl) cl.style.display = 'none';
+
+  if (_addClientSource === 'invoice') {
+    // Redeschide factura F&#x102;R&#x102; reinit linii (datele sunt p&#x103;strate în DOM)
+    const inv = document.getElementById('modal-addInvoice');
+    if (inv) inv.style.display = 'flex';
+    // Adaug&#x103; clientul nou în selector &#x219;i selecteaz&#x103;-l
+    const sel = document.getElementById('inv-client');
+    if (sel) {
+      const exists = [...sel.options].some(o => o.text === fullName);
+      if (!exists) {
+        sel.insertBefore(new Option(fullName, fullName), sel.options[1]);
+      }
+      sel.value = fullName;
+    }
+    showToast(`&#x2713;" Client &#x2192;z${fullName}" creat &#x219;i selectat în factur&#x103;.`);
+  } else {
+    // Deschide automat fi&#x219;a clientului nou creat
+    setTimeout(() => showClientDetails(newId), 50);
+    showToast(`&#x2713;" Client &#x2192;z${fullName}" creat. Fi&#x219;&#x103; deschis&#x103;.`);
+  }
+}
+
+
+// ---- ANIMALE ----
+function renderAnimals(data) {
+  document.getElementById('animalsTable').innerHTML = data.map(a => `
+    <tr class="table-row">
+      <td>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;${a.species==='Câine'?'background:#fef3c7;':'background:#f3e8ff;'}">${a.species==='Câine'?'&#x1F43E;.':'&#x1F43E;^'}</div>
+          <div>
+            <div style="font-weight:500;">${a.name}</div>
+            <div style="font-size:11px;color:#b89275;">${a.microchip}</div>
+          </div>
+        </div>
+      </td>
+      <td><span style="color:#3d2614;">${a.species}</span> <span style="color:#b89275;font-size:12px;">· ${a.breed}</span></td>
+      <td style="color:#5c3d24;">${a.owner}</td>
+      <td style="color:#5c3d24;">${a.age}</td>
+      <td style="color:#5c3d24;">${a.weight}</td>
+      <td style="color:#6b4a2e;">${a.lastConsult}</td>
+      <td style="text-align:right;"><button onclick="showAnimalProfile(${a.id})" style="background:none;border:none;color:#e2ab3b;font-size:12px;cursor:pointer;">Fi&#x219;&#x103; medical&#x103;</button></td>
+    </tr>`).join('');
+}
+function filterAnimals(q) {
+  renderAnimals(animals.filter(a => `${a.name} ${a.breed} ${a.owner}`.toLowerCase().includes(q.toLowerCase())));
+}
+
+// ---- PROGRAM&#x102;RI ----
+function renderAppointments() {
+  const statusStyle = {
+    confirmed: 'background:#dcfce7;color:#166534;',
+    pending:   'background:#dbeafe;color:#6b4228;',
+    urgent:    'background:#fee2e2;color:#dc2626;',
+  };
+  const statusLabel = { confirmed:'Confirmat', pending:'&#xee;n a&#x219;teptare', urgent:'Urgen&#x21b;&#x103;' };
+  document.getElementById('appointmentsTable').innerHTML = appointments.map(a => `
+    <tr class="table-row">
+      <td style="font-weight:600;color:#5c3d24;">${a.time}</td>
+      <td><div style="font-weight:500;">${a.animal}</div><div style="font-size:12px;color:#b89275;">${a.species}</div></td>
+      <td style="color:#5c3d24;">${a.owner}</td>
+      <td style="color:#5c3d24;max-width:200px;"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a.reason}</div></td>
+      <td style="color:#5c3d24;">${a.vet}</td>
+      <td style="color:#6b4a2e;">${a.room}</td>
+      <td><span class="badge" style="${statusStyle[a.status]}">${statusLabel[a.status]}</span></td>
+      <td style="text-align:right;"><button onclick="startConsultation('${a.animal}')" style="background:none;border:none;color:#e2ab3b;font-size:12px;cursor:pointer;font-weight:500;">&#x2013; Start consulta&#x21b;ie</button></td>
+    </tr>`).join('');
+}
+
+// ---- CONSULTA&#x21a;II ----
+function renderConsultations() {
+  document.getElementById('consultationsTable').innerHTML = consultations.map((c, idx) => `
+    <tr class="table-row">
+      <td style="color:#6b4a2e;white-space:nowrap;">${c.date}</td>
+      <td style="font-weight:500;">${c.animal}</td>
+      <td style="color:#5c3d24;">${c.owner}</td>
+      <td style="color:#5c3d24;">${c.vet}</td>
+      <td style="color:#5c3d24;max-width:220px;"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.diagnosis}</div></td>
+      <td style="color:#6b4a2e;font-size:12px;max-width:160px;"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.procedures}</div></td>
+      <td>
+        <span class="badge" style="${c.status==='signed'?'background:#dcfce7;color:#166534;':'background:#fef9c3;color:#854d0e;'}">${c.status==='signed'?'Semnat&#x103;':'Deschis&#x103;'}</span>
+        <span class="badge" style="margin-left:4px;${c.billed?'background:#dbeafe;color:#6b4228;':'background:#ffedd5;color:#9a3412;'}">${c.billed?'Facturat&#x103;':'Nefacturat&#x103;'}</span>
+      </td>
+      <td style="text-align:right;"><button onclick="showConsultationDetails(${idx})" style="background:none;border:none;color:#e2ab3b;font-size:12px;cursor:pointer;">Deschide</button></td>
+    </tr>`).join('');
+}
+
+// ---- FACTURI ----
+const spvStyle  = { accepted:'background:#dcfce7;color:#166534;', processing:'background:#dbeafe;color:#6b4228;', rejected:'background:#fee2e2;color:#dc2626;', '&#x2192;"':'background:#fdf3e3;color:#6b4a2e;' };
+const spvLabel  = { accepted:'&#x2713;" Acceptat', processing:'⏳ Procesare', rejected:'&#x2713;. Respins', '&#x2192;"':'&#x2192;"' };
+const payStyle  = { paid:'background:#dcfce7;color:#166534;', partially_paid:'background:#ffedd5;color:#9a3412;', issued:'background:#dbeafe;color:#6b4228;', draft:'background:#fdf3e3;color:#6b4a2e;' };
+const payLabel  = { paid:'Pl&#x103;tit&#x103;', partially_paid:'Par&#x21b;ial pl&#x103;tit&#x103;', issued:'Emis&#x103;', draft:'Ciorn&#x103;' };
+
+function renderInvoices(data) {
+  document.getElementById('invoicesTable').innerHTML = data.map(i => `
+    <tr class="table-row">
+      <td style="font-weight:500;color:#e2ab3b;">${i.number}</td>
+      <td style="color:#3d2614;">${i.client}</td>
+      <td style="color:#6b4a2e;white-space:nowrap;">${i.date}</td>
+      <td style="text-align:right;font-weight:500;">${i.total} RON</td>
+      <td style="text-align:right;color:#16a34a;">${i.paid} RON</td>
+      <td><span class="badge" style="${payStyle[i.status]}">${payLabel[i.status]}</span></td>
+      <td><span class="badge" style="${spvStyle[i.spv]}">${spvLabel[i.spv]}</span></td>
+      <td style="text-align:right;"><button onclick="showInvoiceDetails('${i.number}')" style="background:none;border:none;color:#e2ab3b;font-size:12px;cursor:pointer;">Detalii</button></td>
+    </tr>`).join('');
+}
+function filterInvoices(status) {
+  renderInvoices(status ? invoices.filter(i => i.status === status) : invoices);
+}
+
+// ============================================================
+// DATE EXTINSE
+// ============================================================
+
+const vaccinations = {
+  'Max':   [
+    { date:'09.06.2026', vaccine:'Antirabic',          next:'09.06.2027', vet:'Dr. Ionescu' },
+    { date:'09.06.2025', vaccine:'Multivalent 5-în-1', next:'09.06.2026', vet:'Dr. Ionescu' },
+    { date:'10.03.2025', vaccine:'Leptospiroz&#x103;',       next:'10.03.2026', vet:'Dr. Popescu' },
+  ],
+  'Milo':  [
+    { date:'15.02.2026', vaccine:'Antirabic',          next:'15.02.2027', vet:'Dr. Popescu' },
+    { date:'15.02.2026', vaccine:'Multivalent 5-în-1', next:'15.02.2027', vet:'Dr. Popescu' },
+  ],
+  'Luna':  [
+    { date:'10.01.2026', vaccine:'Trivalent pisici',   next:'10.01.2027', vet:'Dr. Popescu' },
+    { date:'10.01.2025', vaccine:'Leucoz&#x103; felin&#x103;',     next:'10.01.2026', vet:'Dr. Ionescu' },
+  ],
+  'Rex':   [
+    { date:'05.03.2026', vaccine:'Antirabic',          next:'05.03.2027', vet:'Dr. Ionescu' },
+    { date:'05.03.2025', vaccine:'Multivalent 7-în-1', next:'05.03.2026', vet:'Dr. Ionescu' },
+  ],
+  'Bella': [
+    { date:'20.04.2026', vaccine:'Antirabic',          next:'20.04.2027', vet:'Dr. Ionescu' },
+    { date:'20.04.2025', vaccine:'Multivalent 5-în-1', next:'20.04.2026', vet:'Dr. Popescu' },
+  ],
+  'Nemo':  [
+    { date:'12.12.2025', vaccine:'Trivalent pisici',   next:'12.12.2026', vet:'Dr. Popescu' },
+  ],
+  'Oscar': [
+    { date:'01.02.2026', vaccine:'Antirabic',          next:'01.02.2027', vet:'Dr. Popescu' },
+    { date:'01.02.2026', vaccine:'Multivalent 5-în-1', next:'01.02.2027', vet:'Dr. Popescu' },
+  ],
+};
+
+const invoiceLines = {
+  'VET-2026-000047': [
+    { desc:'Consulta&#x21b;ie general&#x103;',       qty:1, price:150, vat:9 },
+    { desc:'Cur&#x103;&#x21b;are urechi (bilateral)',qty:1, price:80,  vat:9 },
+    { desc:'Otomax unguent auricular',   qty:1, price:55,  vat:9 },
+  ],
+  'VET-2026-000046': [
+    { desc:'Consulta&#x21b;ie general&#x103;',       qty:1, price:120, vat:9 },
+    { desc:'Schimbare pansament',        qty:1, price:50,  vat:9 },
+  ],
+  'VET-2026-000045': [
+    { desc:'Consulta&#x21b;ie general&#x103;',       qty:1, price:150, vat:9 },
+    { desc:'Vaccin antirabic',           qty:1, price:85,  vat:9 },
+    { desc:'Deparazitare intern&#x103;',       qty:1, price:45,  vat:9 },
+    { desc:'Antiparazitar extern (Frontline)', qty:1, price:95, vat:9 },
+  ],
+  'VET-2026-000044': [
+    { desc:'Anestezie general&#x103;',         qty:1, price:200, vat:9 },
+    { desc:'Endoscopie digestiv&#x103;',       qty:1, price:350, vat:9 },
+    { desc:'Extragere corp str&#x103;in',      qty:1, price:120, vat:9 },
+    { desc:'Internare (1 zi)',           qty:1, price:100, vat:9 },
+  ],
+  'VET-2026-000043': [
+    { desc:'Consulta&#x21b;ie dermatologic&#x103;',  qty:1, price:130, vat:9 },
+    { desc:'Antihistaminic injectabil',  qty:1, price:35,  vat:9 },
+  ],
+  'VET-2026-000042': [
+    { desc:'Consulta&#x21b;ie general&#x103;',       qty:3, price:150, vat:9 },
+    { desc:'Vaccin&#x103;ri lot (15 animale)', qty:1, price:750, vat:9 },
+  ],
+  'VET-2026-000041': [
+    { desc:'Consulta&#x21b;ie general&#x103;',       qty:1, price:80,  vat:9 },
+  ],
+};
+
+// ---- Invoice lines dinamice ----
+let currentInvoiceLines = [];
+
+// prefill = { client, consultationIdx, lines[] } &#x2192;" op&#x21b;ional, pentru flux din consulta&#x21b;ie
+let _invoicePrefill = null;
+
+function initInvoiceLines() {
+  if (_invoicePrefill && _invoicePrefill.lines) {
+    currentInvoiceLines = _invoicePrefill.lines.map(l => ({ ...l }));
+  } else {
+    currentInvoiceLines = [
+      { desc:'Consulta&#x21b;ie general&#x103;', qty:1, price:150 },
+      { desc:'', qty:1, price:0 },
+    ];
+  }
+  renderInvoiceLines();
+
+  // Precompleteaz&#x103; clientul dac&#x103; vine din consulta&#x21b;ie
+  if (_invoicePrefill && _invoicePrefill.client) {
+    const sel = document.getElementById('inv-client');
+    if (sel) {
+      // Adaug&#x103; op&#x21b;iunea dac&#x103; nu exist&#x103;
+      const exists = [...sel.options].some(o => o.text === _invoicePrefill.client);
+      if (!exists) sel.insertBefore(new Option(_invoicePrefill.client, _invoicePrefill.client), sel.options[1]);
+      sel.value = _invoicePrefill.client;
+      // Dezactiveaz&#x103; selectorul vizual &#x2192;" clientul e fixat din consulta&#x21b;ie
+      sel.style.background = '#f0fdf4';
+      sel.style.borderColor = '#86efac';
+    }
+    // Afi&#x219;eaz&#x103; badge informativ lâng&#x103; selector
+    const badge = document.getElementById('inv-client-badge');
+    if (badge) {
+      badge.textContent = '&#x2713;" Din consulta&#x21b;ie';
+      badge.style.display = 'inline-flex';
+    }
+  } else {
+    const sel = document.getElementById('inv-client');
+    if (sel) { sel.style.background = ''; sel.style.borderColor = ''; }
+    const badge = document.getElementById('inv-client-badge');
+    if (badge) badge.style.display = 'none';
+  }
+}
+
+// Deschide factura pre-completat&#x103; din contextul unei consulta&#x21b;ii
+function openInvoiceFromConsultation(consultIdx) {
+  const c = consultations[consultIdx];
+  if (!c) return;
+
+  // Construie&#x219;te liniile din procedurile consulta&#x21b;iei
+  const procedureLines = c.procedures.split(',').map(p => ({
+    desc: p.trim(), qty: 1, price: 80
+  }));
+  procedureLines.unshift({ desc: 'Consulta&#x21b;ie general&#x103;', qty: 1, price: 150 });
+
+  _invoicePrefill = {
+    client: c.owner,
+    consultationIdx: consultIdx,
+    animal: c.animal,
+    lines: procedureLines,
+  };
+
+  hideModal();
+  showModal('addInvoice');  // initInvoiceLines va citi _invoicePrefill
+}
+
+function addInvoiceLine() {
+  currentInvoiceLines.push({ desc:'', qty:1, price:0 });
+  renderInvoiceLines();
+}
+
+function removeInvoiceLine(idx) {
+  if (currentInvoiceLines.length <= 1) return;
+  // Sync state from DOM before splice so we don't lose edits
+  syncLinesFromDom();
+  currentInvoiceLines.splice(idx, 1);
+  renderInvoiceLines();
+}
+
+// Reads current values from DOM inputs into currentInvoiceLines (no re-render)
+function syncLinesFromDom() {
+  const body = document.getElementById('inv-lines-body');
+  if (!body) return;
+  body.querySelectorAll('.inv-line-row').forEach((row, i) => {
+    if (!currentInvoiceLines[i]) return;
+    currentInvoiceLines[i].desc  = row.querySelector('.inv-desc').value;
+    currentInvoiceLines[i].qty   = parseFloat(row.querySelector('.inv-qty').value)   || 0;
+    currentInvoiceLines[i].price = parseFloat(row.querySelector('.inv-price').value) || 0;
+  });
+}
+
+// Recalculates total from DOM values WITHOUT re-rendering inputs (preserves focus)
+function recalcTotal() {
+  const body = document.getElementById('inv-lines-body');
+  if (!body) return;
+  let subtotal = 0;
+  body.querySelectorAll('.inv-line-row').forEach(row => {
+    const qty   = parseFloat(row.querySelector('.inv-qty').value)   || 0;
+    const price = parseFloat(row.querySelector('.inv-price').value) || 0;
+    subtotal += qty * price;
+  });
+  const t = document.getElementById('inv-total');
+  if (t) t.textContent = (subtotal * 1.09).toFixed(2).replace('.', ',') + ' RON';
+}
+
+function renderInvoiceLines() {
+  const body = document.getElementById('inv-lines-body');
+  if (!body) return;
+  body.innerHTML = currentInvoiceLines.map((l, i) => `
+    <div class="inv-line-row" style="display:grid;grid-template-columns:1fr 60px 90px 32px;gap:0;border-top:1px solid #f3e8d8;padding:6px 12px;align-items:center;">
+      <input type="text" class="inv-desc" value="${l.desc}" oninput="recalcTotal()"
+        style="border:none;background:transparent;padding:4px 0;font-size:13px;outline:none;width:100%;"
+        placeholder="Descriere serviciu sau produs&#x2192;" />
+      <input type="number" class="inv-qty" value="${l.qty}" min="1" oninput="recalcTotal()"
+        style="border:none;background:#fdf8f2;border-radius:4px;padding:4px 6px;font-size:13px;text-align:right;width:100%;outline:none;" />
+      <input type="number" class="inv-price" value="${l.price || ''}" min="0" step="0.01" oninput="recalcTotal()"
+        style="border:none;background:#fdf8f2;border-radius:4px;padding:4px 6px;font-size:13px;text-align:right;width:100%;outline:none;" placeholder="0.00" />
+      <button onclick="removeInvoiceLine(${i})" style="background:none;border:none;cursor:pointer;color:#b89275;font-size:16px;padding:2px 4px;" title="&#x218;terge linie">&#x2013;</button>
+    </div>`).join('');
+  recalcTotal();
+}
+
+// Helper: colecteaz&#x103; liniile din DOM
+function _collectLinesFromDom(requirePrice) {
+  const body = document.getElementById('inv-lines-body');
+  const lines = [];
+  if (body) {
+    body.querySelectorAll('.inv-line-row').forEach(row => {
+      const desc  = row.querySelector('.inv-desc').value.trim();
+      const qty   = parseFloat(row.querySelector('.inv-qty').value)   || 0;
+      const price = parseFloat(row.querySelector('.inv-price').value) || 0;
+      if (desc && (!requirePrice || price > 0)) lines.push({ desc, qty, price, vat: 9 });
+    });
+  }
+  return lines;
+}
+
+// Helper: reseteaz&#x103; starea dup&#x103; salvare/emitere
+function _resetInvoiceState() {
+  _invoicePrefill = null;
+  _editingDraftNumber = null;
+  const title = document.querySelector('#modal-addInvoice h3');
+  if (title) title.textContent = 'Factur&#x103; nou&#x103;';
+}
+
+// Helper: total + date
+function _invoiceMeta(lines) {
+  const subtotal = lines.reduce((s, l) => s + l.qty * l.price, 0);
+  const total    = +(subtotal * 1.09).toFixed(2);
+  const now = new Date();
+  const date = `${String(now.getDate()).padStart(2,'0')}.${String(now.getMonth()+1).padStart(2,'0')}.${now.getFullYear()}`;
+  return { subtotal, total, date };
+}
+
+function emiteFactura() {
+  const client = document.getElementById('inv-client')?.value.trim() || '';
+  if (!client) { showToast('&#x21a;️ Selecta&#x21b;i un client!'); return; }
+
+  const lines = _collectLinesFromDom(true);
+  if (!lines.length) { showToast('&#x21a;️ Ad&#x103;uga&#x21b;i cel pu&#x21b;in o linie cu descriere &#x219;i pre&#x21b;!'); return; }
+
+  const { total, date } = _invoiceMeta(lines);
+  const consultIdx = _invoicePrefill?.consultationIdx ?? null;
+
+  let number;
+  if (_editingDraftNumber) {
+    // Promoveaz&#x103; ciorna existent&#x103; &#x2192;' issued (suprascrie în loc)
+    number = _editingDraftNumber;
+    const idx = invoices.findIndex(i => i.number === number);
+    if (idx !== -1) {
+      invoices[idx] = { ...invoices[idx], client, total: total.toFixed(2).replace('.',','), status: 'issued', spv: 'processing', date };
+    }
+    invoiceLines[number] = lines;
+  } else {
+    // Factur&#x103; nou&#x103;
+    const nextNum = String(invoices.length + 48).padStart(6, '0');
+    number = `VET-2026-000${nextNum}`;
+    invoices.unshift({ number, client, date, total: total.toFixed(2).replace('.',','), paid: '0,00', status: 'issued', spv: 'processing', consultationIdx: consultIdx });
+    invoiceLines[number] = lines;
+  }
+
+  // Marcheaz&#x103; consulta&#x21b;ia ca facturat&#x103;
+  if (consultIdx !== null && consultations[consultIdx]) {
+    consultations[consultIdx].billed = true;
+    renderConsultations();
+  }
+
+  _resetInvoiceState();
+  renderInvoices(invoices);
+  nav('invoices');
+  hideModal();
+  showToast(`&#x2713;" Factura ${number} emis&#x103; &#x219;i trimis&#x103; la ANAF SPV!`);
+}
+
+function salveazaCiorna() {
+  const client = document.getElementById('inv-client')?.value.trim() || '';
+  if (!client) { showToast('&#x21a;️ Selecta&#x21b;i un client!'); return; }
+
+  const lines = _collectLinesFromDom(false);
+  const { total, date } = _invoiceMeta(lines);
+
+  let number;
+  if (_editingDraftNumber) {
+    // Actualizeaz&#x103; ciorna existent&#x103; &#x2192;" p&#x103;streaz&#x103; num&#x103;rul
+    number = _editingDraftNumber;
+    const idx = invoices.findIndex(i => i.number === number);
+    if (idx !== -1) {
+      invoices[idx] = { ...invoices[idx], client, total: total.toFixed(2).replace('.',',') };
+    }
+    invoiceLines[number] = lines;
+  } else {
+    // Ciorn&#x103; nou&#x103;
+    const nextNum = String(invoices.length + 48).padStart(6, '0');
+    number = `VET-2026-000${nextNum}`;
+    const now  = new Date();
+    const date2 = `${String(now.getDate()).padStart(2,'0')}.${String(now.getMonth()+1).padStart(2,'0')}.${now.getFullYear()}`;
+    invoices.unshift({ number, client, date: date2, total: total.toFixed(2).replace('.',','), paid: '0,00', status: 'draft', spv: '&#x2192;"' });
+    invoiceLines[number] = lines;
+  }
+
+  _resetInvoiceState();
+  renderInvoices(invoices);
+  nav('invoices');
+  hideModal();
+  showToast(`Ciorn&#x103; ${number} salvat&#x103; &#x2192;" nu a fost trimis&#x103; la ANAF.`);
+}
+
+// ============================================================
+// MODALS &#x2192;" func&#x21b;ii de deschidere
+// ============================================================
+function showModal(id) {
+  const el = document.getElementById('modal-' + id);
+  if (!el) return;
+  el.style.display = 'flex';
+  if (id === 'addInvoice' && !_returningToInvoice) {
+    if (!_invoicePrefill) _invoicePrefill = null;
+    initInvoiceLines();
+  }
+  if (id === 'addAppointment') {
+    populateApptAnimalSelector();
+    // Reseteaz&#x103; câmpurile la deschidere fresh
+    const dateEl = document.getElementById('appt-date');
+    if (dateEl && !dateEl.value) dateEl.value = '2026-06-10';
+  }
+  _returningToInvoice = false;
+}
+
+// Buton "Factur&#x103; nou&#x103;" din bara principal&#x103; &#x2192;" f&#x103;r&#x103; prefill
+function openFreshInvoice() {
+  _invoicePrefill = null;
+  showModal('addInvoice');
+}
+function hideModal() { document.querySelectorAll('.modal-backdrop').forEach(m => m.style.display = 'none'); }
+
+let _returningToInvoice = false;
+
+// ---- Tratamente ----
+// Stocare: { [animalName]: [ {drug, dose, freq, duration, qty, vet, notes, date, id} ] }
+const treatmentLines = {
+  'Max':  [
+    { id:1, drug:'Otomax unguent', dose:'4 pic&#x103;turi/ureche', freq:'2x/zi', duration:'7 zile', qty:'1 tub', vet:'Dr. Ionescu Alexandru', notes:'Cur&#x103;&#x21b;a&#x21b;i urechea înainte de aplicare', date:'08.06.2026' },
+  ],
+  'Luna': [
+    { id:2, drug:'Prednisolon 5mg', dose:'½ comprimat', freq:'1x/zi', duration:'5 zile', qty:'5 comprimate', vet:'Dr. Popescu Maria', notes:'Cu mâncare, reducere treptat&#x103;', date:'07.06.2026' },
+  ],
+};
+
+let _currentAnimalName = null;  // animlul deschis curent în fi&#x219;a medical&#x103;
+
+function toggleTreatmentForm() {
+  const form = document.getElementById('ap-treatment-form');
+  if (!form) return;
+  const isVisible = form.style.display !== 'none';
+  form.style.display = isVisible ? 'none' : 'block';
+  if (!isVisible) {
+    // Gole&#x219;te câmpurile la deschidere
+    ['tr-drug','tr-dose','tr-freq','tr-duration','tr-qty','tr-notes'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    document.getElementById('tr-drug')?.focus();
+  }
+}
+
+function saveTreatmentLine() {
+  const drug     = document.getElementById('tr-drug')?.value.trim()     || '';
+  const dose     = document.getElementById('tr-dose')?.value.trim()     || '';
+  const freq     = document.getElementById('tr-freq')?.value.trim()     || '';
+  const duration = document.getElementById('tr-duration')?.value.trim() || '';
+  const qty      = document.getElementById('tr-qty')?.value.trim()      || '';
+  const vet      = document.getElementById('tr-vet')?.value             || '';
+  const notes    = document.getElementById('tr-notes')?.value.trim()    || '';
+
+  if (!drug) { showToast('&#x21a;️ Introduce&#x21b;i medicamentul / produsul!'); return; }
+
+  const now = new Date();
+  const date = `${String(now.getDate()).padStart(2,'0')}.${String(now.getMonth()+1).padStart(2,'0')}.${now.getFullYear()}`;
+  const newId = Date.now();
+
+  if (!treatmentLines[_currentAnimalName]) treatmentLines[_currentAnimalName] = [];
+  treatmentLines[_currentAnimalName].unshift({ id: newId, drug, dose, freq, duration, qty, vet, notes, date });
+
+  renderTreatments(_currentAnimalName);
+  updatePrintBtnState(_currentAnimalName);
+  toggleTreatmentForm();
+  showToast(`&#x2713;" Tratament &#x2192;z${drug}" salvat pentru ${_currentAnimalName}.`);
+}
+
+function renderTreatments(animalName) {
+  const el = document.getElementById('ap-treatments');
+  if (!el) return;
+  const list = treatmentLines[animalName] || [];
+  el.innerHTML = list.length
+    ? list.map(t => `
+        <div style="padding:12px 14px;background:#fdf8f2;border-radius:8px;border-left:3px solid #e2ab3b;">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+            <div style="flex:1;">
+              <div style="font-weight:600;font-size:13px;color:#2d1a0a;">&#x1F43E;'S ${t.drug}</div>
+              <div style="font-size:12px;color:#5c3d24;margin-top:4px;display:flex;flex-wrap:wrap;gap:10px;">
+                ${t.dose     ? `<span>Doz&#x103;: <strong>${t.dose}</strong></span>`         : ''}
+                ${t.freq     ? `<span>Frecven&#x21b;&#x103;: <strong>${t.freq}</strong></span>`    : ''}
+                ${t.duration ? `<span>Durat&#x103;: <strong>${t.duration}</strong></span>`   : ''}
+                ${t.qty      ? `<span>Cantitate: <strong>${t.qty}</strong></span>`     : ''}
+              </div>
+              ${t.notes ? `<div style="font-size:12px;color:#6b4a2e;margin-top:4px;font-style:italic;">&#x1F43E;" ${t.notes}</div>` : ''}
+              <div style="font-size:11px;color:#b89275;margin-top:6px;">${t.date} · ${t.vet}</div>
+            </div>
+            <button onclick="deleteTreatment('${animalName}',${t.id})"
+              style="background:none;border:none;cursor:pointer;color:#fca5a5;font-size:15px;padding:2px 4px;flex-shrink:0;"
+              title="&#x218;terge tratament">&#x2013;</button>
+          </div>
+        </div>`).join('')
+    : '<div style="font-size:13px;color:#b89275;font-style:italic;">Niciun tratament activ înregistrat.</div>';
+}
+
+function deleteTreatment(animalName, id) {
+  if (!treatmentLines[animalName]) return;
+  treatmentLines[animalName] = treatmentLines[animalName].filter(t => t.id !== id);
+  renderTreatments(animalName);
+  // Actualizeaz&#x103; starea butonului print
+  updatePrintBtnState(animalName);
+  showToast('Tratament eliminat din fi&#x219;&#x103;.');
+}
+
+function updatePrintBtnState(animalName) {
+  const btn = document.getElementById('btn-quick-print');
+  if (!btn) return;
+  const hasTreatments = (treatmentLines[animalName] || []).length > 0;
+  btn.disabled = !hasTreatments;
+  btn.style.opacity = hasTreatments ? '1' : '0.4';
+  btn.style.cursor  = hasTreatments ? 'pointer' : 'not-allowed';
+  btn.title = hasTreatments ? 'Printeaz&#x103; lista de tratamente' : 'Nu exist&#x103; tratamente de printat';
+}
+
+function quickPrintTreatments() {
+  const list = treatmentLines[_currentAnimalName] || [];
+  if (!list.length) {
+    showToast('&#x21a;️ Nu exist&#x103; tratamente de printat.');
+    return;
+  }
+
+  const animal = animals.find(a => a.name === _currentAnimalName);
+  const owner  = animal?.owner   || '&#x2192;"';
+  const species = animal?.species || '&#x2192;"';
+  const breed  = animal?.breed   || '&#x2192;"';
+  const now    = new Date();
+  const dateStr = `${String(now.getDate()).padStart(2,'0')}.${String(now.getMonth()+1).padStart(2,'0')}.${now.getFullYear()}`;
+  const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+  const rows = list.map((t, i) => `
+    <tr>
+      <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-weight:600;color:#1e3a5f;vertical-align:top;">${i+1}. ${t.drug}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;vertical-align:top;">${t.dose || '&#x2192;"'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;vertical-align:top;">${t.freq || '&#x2192;"'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;vertical-align:top;">${t.duration || '&#x2192;"'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;vertical-align:top;">${t.qty || '&#x2192;"'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;vertical-align:top;color:#6b7280;font-size:12px;">${t.notes || '&#x2192;"'}</td>
+    </tr>`).join('');
+
+  const vet = list[0]?.vet || '&#x2192;"';
+
+  const html = `<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <title>Re&#x21b;etar tratamente &#x2192;" ${_currentAnimalName}</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family: 'Segoe UI', Arial, sans-serif; }
+    body { padding:32px 40px; color:#111827; font-size:14px; background:#fff; }
+    .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:28px; padding-bottom:16px; border-bottom:2px solid #1e3a5f; }
+    .clinic-name { font-size:20px; font-weight:700; color:#1e3a5f; }
+    .clinic-sub  { font-size:12px; color:#6b7280; margin-top:3px; }
+    .doc-title   { font-size:16px; font-weight:700; color:#1e3a5f; text-align:right; }
+    .doc-meta    { font-size:12px; color:#6b7280; text-align:right; margin-top:3px; }
+    .info-grid   { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:24px; background:#f9fafb; border-radius:8px; padding:16px; border:1px solid #e5e7eb; }
+    .info-item label { font-size:11px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:.05em; display:block; margin-bottom:3px; }
+    .info-item span  { font-size:14px; font-weight:500; color:#111827; }
+    .section-title { font-size:12px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:.07em; margin-bottom:10px; }
+    table { width:100%; border-collapse:collapse; margin-bottom:28px; }
+    thead tr { background:#1e3a5f; }
+    thead th { padding:10px 12px; color:#fff; font-size:12px; font-weight:600; text-align:left; }
+    tbody tr:nth-child(even) { background:#f9fafb; }
+    .footer { margin-top:32px; padding-top:16px; border-top:1px solid #e5e7eb; display:flex; justify-content:space-between; font-size:12px; color:#9ca3af; }
+    .signature-box { margin-top:28px; display:flex; gap:48px; }
+    .sig { flex:1; border-top:1px solid #9ca3af; padding-top:8px; font-size:12px; color:#6b7280; text-align:center; }
+    @media print {
+      body { padding:20px 28px; }
+      @page { margin:15mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="clinic-name">&#x1F43E; Nordskar PIMS</div>
+      <div class="clinic-sub">Clinic&#x103; Veterinar&#x103; · str. Exemplu nr. 1, Cluj-Napoca</div>
+      <div class="clinic-sub">Tel: 0264 XXX XXX · office@nordskar.ro</div>
+    </div>
+    <div>
+      <div class="doc-title">RE&#x21a;ETAR TRATAMENTE</div>
+      <div class="doc-meta">Data: ${dateStr} · Ora: ${timeStr}</div>
+      <div class="doc-meta">Medic: ${vet}</div>
+    </div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-item"><label>Animal / Pacient</label><span>${_currentAnimalName}</span></div>
+    <div class="info-item"><label>Proprietar</label><span>${owner}</span></div>
+    <div class="info-item"><label>Specie / Ras&#x103;</label><span>${species} · ${breed}</span></div>
+    <div class="info-item"><label>Nr. tratamente</label><span>${list.length} linie${list.length !== 1 ? 'i' : ''}</span></div>
+  </div>
+
+  <div class="section-title">Lista tratamente prescrise</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Medicament / Produs</th>
+        <th>Doz&#x103;</th>
+        <th>Frecven&#x21b;&#x103;</th>
+        <th>Durat&#x103;</th>
+        <th>Cantitate</th>
+        <th>Observa&#x21b;ii</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+
+  <div class="signature-box">
+    <div class="sig">Semn&#x103;tura medic<br><br><strong>${vet}</strong></div>
+    <div class="sig">Semn&#x103;tura proprietar<br><br>${owner}</div>
+    <div class="sig">&#x218;tampila clinicii</div>
+  </div>
+
+  <div class="footer">
+    <span>Document generat automat de Nordskar PIMS · ${dateStr} ${timeStr}</span>
+    <span>Re&#x21b;etarul este valabil 30 de zile de la data emiterii.</span>
+  </div>
+
+  <script>window.onload = function() { window.print(); }<\/script>
+</body>
+</html>`;
+
+  const w = window.open('', '_blank', 'width=900,height=700');
+  if (!w) { showToast('&#x21a;️ Browserul a blocat fereastra pop-up. Permite&#x21b;i pop-up-uri pentru acest site.'); return; }
+  w.document.write(html);
+  w.document.close();
+}
+
+// ---- Fi&#x219;&#x103; animal ----
+function showAnimalProfile(animalId) {
+  const a = animals.find(x => x.id === animalId);
+  if (!a) return;
+  const emoji = a.species === 'Câine' ? '&#x1F43E;.' : '&#x1F43E;^';
+  document.getElementById('ap-header').innerHTML = `
+    <div style="font-size:40px;">${emoji}</div>
+    <div>
+      <div style="font-size:18px;font-weight:700;">${a.name}</div>
+      <div style="color:#6b4a2e;font-size:14px;">${a.species} · ${a.breed}</div>
+      <div style="color:#6b4a2e;font-size:13px;margin-top:2px;">Proprietar: <strong>${a.owner}</strong></div>
+    </div>`;
+  document.getElementById('ap-info').innerHTML = [
+    ['Vârst&#x103;', a.age], ['Greutate', a.weight],
+    ['Microcip', a.microchip], ['Ultima consulta&#x21b;ie', a.lastConsult],
+  ].map(([k, v]) => `
+    <div style="padding:10px 12px;background:#fdf8f2;border-radius:8px;">
+      <div style="font-size:11px;color:#b89275;margin-bottom:3px;">${k}</div>
+      <div style="font-weight:500;">${v}</div>
+    </div>`).join('');
+
+  const vaxList = vaccinations[a.name] || [];
+  document.getElementById('ap-vaccines').innerHTML = vaxList.length
+    ? vaxList.map(v => `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#fdf8f2;border-radius:8px;">
+          <span style="font-size:16px;">&#x1F43E;'?</span>
+          <div style="flex:1;">
+            <span style="font-weight:500;">${v.vaccine}</span>
+            <span style="color:#6b4a2e;font-size:12px;margin-left:8px;">Administrat: ${v.date}</span>
+          </div>
+          <span style="font-size:12px;color:#16a34a;font-weight:500;">Revaccinare: ${v.next}</span>
+        </div>`).join('')
+    : '<div style="font-size:13px;color:#b89275;font-style:italic;">Nicio vaccinare înregistrat&#x103;.</div>';
+
+  const cons = consultations.filter(c => c.animal === a.name);
+  document.getElementById('ap-consultations').innerHTML = cons.length
+    ? cons.map(c => `
+        <div style="display:flex;gap:12px;padding:10px 14px;background:#fdf8f2;border-radius:8px;align-items:flex-start;">
+          <span style="font-size:12px;color:#b89275;white-space:nowrap;margin-top:2px;">${c.date}</span>
+          <div style="flex:1;font-size:13px;">
+            <div style="font-weight:500;color:#2d1a0a;">${c.diagnosis}</div>
+            <div style="color:#6b4a2e;margin-top:2px;">${c.procedures} · ${c.vet}</div>
+          </div>
+          <span class="badge" style="${c.status==='signed'?'background:#dcfce7;color:#166534;':'background:#fef9c3;color:#854d0e;'}">${c.status==='signed'?'Semnat&#x103;':'Deschis&#x103;'}</span>
+        </div>`).join('')
+    : '<div style="font-size:13px;color:#b89275;font-style:italic;">Nicio consulta&#x21b;ie înregistrat&#x103;.</div>';
+
+  // Seteaz&#x103; animalul curent &#x219;i randeaz&#x103; tratamentele
+  _currentAnimalName = a.name;
+  // Ascunde formularul la (re)deschidere
+  const form = document.getElementById('ap-treatment-form');
+  if (form) form.style.display = 'none';
+  renderTreatments(a.name);
+  // Actualizeaz&#x103; starea butonului print dup&#x103; randare (mic delay pentru DOM)
+  setTimeout(() => updatePrintBtnState(a.name), 0);
+
+  showModal('animalProfile');
+}
+
+// ---- Detalii consulta&#x21b;ie ----
+function showConsultationDetails(idx) {
+  const c = consultations[idx];
+  if (!c) return;
+  document.getElementById('cons-header').innerHTML = `
+    <div style="flex:1;">
+      <div style="font-weight:600;font-size:15px;">${c.animal} &#x2192;" ${c.owner}</div>
+      <div style="color:#6b4a2e;font-size:13px;margin-top:3px;">${c.date} · ${c.vet}</div>
+    </div>
+    <span class="badge" style="${c.status==='signed'?'background:#dcfce7;color:#166534;':'background:#fef9c3;color:#854d0e;'}">${c.status==='signed'?'Semnat&#x103;':'Deschis&#x103;'}</span>
+    <span class="badge" style="margin-left:6px;${c.billed?'background:#dbeafe;color:#6b4228;':'background:#ffedd5;color:#9a3412;'}">${c.billed?'Facturat&#x103;':'Nefacturat&#x103;'}</span>`;
+
+  document.getElementById('cons-body').innerHTML = [
+    ['Diagnostic', c.diagnosis],
+    ['Proceduri efectuate', c.procedures],
+    ['Medic curant', c.vet],
+  ].map(([label, val]) => `
+    <div style="padding:12px;background:#fdf8f2;border-radius:8px;">
+      <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">${label}</div>
+      <div style="font-size:14px;color:#2d1a0a;">${val}</div>
+    </div>`).join('');
+
+  const actions = document.getElementById('cons-actions');
+  let btns = `<button onclick="hideModal()" class="btn-secondary">&#xce;nchide</button>`;
+  if (c.status === 'open') {
+    btns += `<button onclick="hideModal();showToast('Consulta&#x21b;ia a fost semnat&#x103; de ${c.vet}')" class="btn-primary">Semneaz&#x103; consulta&#x21b;ia</button>`;
+  } else if (!c.billed) {
+    btns += `<button onclick="openInvoiceFromConsultation(${idx})" class="btn-primary">Emite factur&#x103;</button>`;
+  }
+  actions.innerHTML = btns;
+  showModal('consultationDetails');
+}
+
+// ---- Detalii factur&#x103; ----
+function showInvoiceDetails(number) {
+  const inv = invoices.find(i => i.number === number);
+  if (!inv) return;
+  const lines = invoiceLines[number] || [];
+  const subtotal = lines.reduce((s, l) => s + l.qty * l.price, 0);
+  const vat = +(subtotal * 0.09).toFixed(2);
+  const total = +(subtotal + vat).toFixed(2);
+
+  document.getElementById('inv-detail-header').innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-size:18px;font-weight:700;color:#e2ab3b;">${inv.number}</div>
+        <div style="font-size:13px;color:#6b4a2e;margin-top:2px;">Client: <strong>${inv.client}</strong> · Data: ${inv.date}</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <span class="badge" style="${payStyle[inv.status]}">${payLabel[inv.status]}</span>
+        <span class="badge" style="${spvStyle[inv.spv]}">${spvLabel[inv.spv]}</span>
+      </div>
+    </div>`;
+
+  document.getElementById('inv-detail-lines').innerHTML = lines.map(l => `
+    <div style="display:grid;grid-template-columns:1fr 60px 90px 90px;padding:10px 16px;border-top:1px solid #f3e8d8;font-size:13px;">
+      <span>${l.desc}</span>
+      <span style="text-align:right;color:#6b4a2e;">${l.qty}</span>
+      <span style="text-align:right;color:#6b4a2e;">${l.price.toFixed(2).replace('.',',')} RON</span>
+      <span style="text-align:right;font-weight:500;">${(l.qty*l.price).toFixed(2).replace('.',',')} RON</span>
+    </div>`).join('');
+
+  document.getElementById('inv-detail-totals').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;font-size:13px;">
+      <div style="color:#6b4a2e;">Subtotal: <strong>${subtotal.toFixed(2).replace('.',',')} RON</strong></div>
+      <div style="color:#6b4a2e;">TVA 9%: <strong>${vat.toFixed(2).replace('.',',')} RON</strong></div>
+      <div style="font-size:15px;font-weight:700;margin-top:4px;">Total: ${total.toFixed(2).replace('.',',')} RON</div>
+    </div>`;
+
+  const spvColors = { accepted:'background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;', processing:'background:#fdf3dc;border:1px solid #bfdbfe;color:#6b4228;', rejected:'background:#fff1f2;border:1px solid #fecdd3;color:#be123c;', '&#x2192;"':'background:#fdf8f2;border:1px solid #e8d5b7;color:#6b4a2e;' };
+  const spvText = { accepted:'&#x2713;" Acceptat de ANAF &#x2192;" factura este conform&#x103;.', processing:'⏳ Factura este în procesare la ANAF e-Factura.', rejected:'&#x2713;. Factura a fost respins&#x103;. Verifica&#x21b;i erorile SPV.', '&#x2192;"':'Factur&#x103; ciorn&#x103; &#x2192;" nesubmis&#x103; la ANAF.' };
+  document.getElementById('inv-detail-spv').style.cssText = spvColors[inv.spv];
+  document.getElementById('inv-detail-spv').textContent = spvText[inv.spv];
+
+  let actionHtml = `<button onclick="hideModal()" class="btn-secondary">&#xce;nchide</button>`;
+  if (inv.status === 'draft') {
+    actionHtml += `<button onclick="openDraftForEditing('${inv.number}')" class="btn-primary">&#x2713;️ Editeaz&#x103; ciorn&#x103;</button>`;
+  } else if (inv.status !== 'paid') {
+    actionHtml += `<button onclick="hideModal();showToast('Plat&#x103; înregistrat&#x103; pe factura ${inv.number}')" class="btn-primary">&#xee;nregistreaz&#x103; plat&#x103;</button>`;
+  }
+  document.getElementById('inv-detail-actions').innerHTML = actionHtml;
+  showModal('invoiceDetails');
+}
+
+// ---- Editare ciorn&#x103; existent&#x103; ----
+let _editingDraftNumber = null;  // null = factur&#x103; nou&#x103;, altfel = num&#x103;rul ciornei editate
+
+function openDraftForEditing(number) {
+  const inv = invoices.find(i => i.number === number);
+  if (!inv || inv.status !== 'draft') return;
+
+  _editingDraftNumber = number;
+  _invoicePrefill = {
+    client: inv.client,
+    lines: (invoiceLines[number] || []).map(l => ({ ...l })),
+  };
+
+  hideModal();
+  // Deschide formularul de factur&#x103; cu datele ciornei, f&#x103;r&#x103; a reseta liniile
+  const el = document.getElementById('modal-addInvoice');
+  if (el) el.style.display = 'flex';
+  initInvoiceLines();
+
+  // Actualizeaz&#x103; titlul pentru a indica editarea
+  const title = document.querySelector('#modal-addInvoice h3');
+  if (title) title.textContent = `Editeaz&#x103; ciorn&#x103; ${number}`;
+}
+
+// ---- Programare nou&#x103; ----
+function populateApptAnimalSelector() {
+  const sel = document.getElementById('appt-animal');
+  if (!sel) return;
+  // P&#x103;streaz&#x103; prima op&#x21b;iune goal&#x103;, reconstruie&#x219;te restul din array-ul animals
+  sel.innerHTML = '<option value="">&#x2192;" Selecteaz&#x103; animal &#x2192;"</option>';
+  animals.forEach(a => {
+    const opt = new Option(`${a.name} &#x2192;" ${a.species} (${a.owner})`, a.name);
+    sel.appendChild(opt);
+  });
+}
+
+function openAddAnimalFromAppointment() {
+  document.getElementById('modal-addAppointment').style.display = 'none';
+  _addAnimalReturnTo = 'appointment';
+  _addAnimalForClientId = null;
+  resetAnimalForm();
+  populateAnimalOwnerSelector(null);
+  document.getElementById('modal-addAnimal').style.display = 'flex';
+  if (false) {
+    // Fallback: adaug&#x103; un animal demo direct
+    const name  = prompt('Nume animal:');
+    if (!name) { document.getElementById('modal-addAppointment').style.display = 'flex'; return; }
+    const owner = prompt('Proprietar (nume client):') || 'Client nou';
+    const species = prompt('Specie (Câine / Pisic&#x103;):') || 'Câine';
+    animals.push({ id: animals.length + 10, name, species, breed: 'Nedefinit', owner, age: '&#x2192;"', weight: '&#x2192;"', microchip: '&#x2192;"', lastConsult: '&#x2192;"' });
+    renderAnimals(animals);
+    populateApptAnimalSelector();
+    document.getElementById('modal-addAppointment').style.display = 'flex';
+    const sel = document.getElementById('appt-animal');
+    if (sel) sel.value = name;
+    showToast(`&#x2713;" Animal &#x2192;z${name}" ad&#x103;ugat &#x219;i selectat.`);
+  }
+}
+let _addAnimalReturnTo = null;
+let _addAnimalForClientId = null; // ID client pre-selectat când se deschide din fișa clientului
+
+function populateAnimalOwnerSelector(preSelectClientId) {
+  const sel = document.getElementById('na-owner');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">&#x2192; Selecteaz&#x103; proprietar</option>';
+  clients.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = `${c.firstName} ${c.lastName}`.trim();
+    sel.appendChild(opt);
+  });
+  const badge = document.getElementById('na-owner-badge');
+  if (preSelectClientId) {
+    sel.value = preSelectClientId;
+    sel.disabled = true;
+    if (badge) badge.style.display = 'inline';
+  } else {
+    sel.disabled = false;
+    if (badge) badge.style.display = 'none';
+  }
+}
+
+function resetAnimalForm() {
+  ['na-name','na-breed','na-microchip'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const sp = document.getElementById('na-species'); if (sp) sp.selectedIndex = 0;
+  const sx = document.getElementById('na-sex');     if (sx) sx.selectedIndex = 0;
+  const bd = document.getElementById('na-birth');   if (bd) bd.value = '';
+  const wt = document.getElementById('na-weight');  if (wt) wt.value = '';
+  const ow = document.getElementById('na-owner');   if (ow) { ow.disabled = false; ow.value = ''; }
+  const badge = document.getElementById('na-owner-badge'); if (badge) badge.style.display = 'none';
+}
+
+function saveDemoAnimal() {
+  const name     = (document.getElementById('na-name')?.value || '').trim();
+  const species  = document.getElementById('na-species')?.value || 'Câine';
+  const breed    = (document.getElementById('na-breed')?.value || '').trim() || 'Nedefinit';
+  const sex      = document.getElementById('na-sex')?.value || 'Mascul';
+  const birth    = document.getElementById('na-birth')?.value || '';
+  const weightRaw= parseFloat(document.getElementById('na-weight')?.value) || 0;
+  const clientId = parseInt(document.getElementById('na-owner')?.value) || _addAnimalForClientId;
+  const microchip= (document.getElementById('na-microchip')?.value || '').trim();
+
+  if (!name) { showToast('&#x21a;&#x21b; Numele animalului este obligatoriu!'); return; }
+
+  const client = clients.find(c => c.id === clientId);
+  if (!client) { showToast('&#x21a;&#x21b; Selecteaz&#x103; un proprietar!'); return; }
+
+  const ownerName = `${client.firstName} ${client.lastName}`.trim();
+
+  // Calculeaz&#x103; vârsta din data na&#x219;terii
+  let ageStr = '&#x2192;';
+  if (birth) {
+    const diffMs = Date.now() - new Date(birth).getTime();
+    const diffYr = diffMs / (1000 * 60 * 60 * 24 * 365.25);
+    if (diffYr >= 1) ageStr = Math.floor(diffYr) + ' ani';
+    else ageStr = Math.round(diffYr * 12) + ' luni';
+  }
+
+  const newId = Math.max(0, ...animals.map(a => a.id)) + 1;
+  const newAnimal = {
+    id: newId,
+    name,
+    species,
+    breed,
+    sex,
+    owner: ownerName,
+    ownerId: client.id,
+    age: ageStr,
+    weight: weightRaw ? weightRaw + ' kg' : '&#x2192;',
+    microchip: microchip || '&#x2192;',
+    lastConsult: '&#x2192;'
+  };
+
+  animals.push(newAnimal);
+  // Actualizeaz&#x103; contorul de animale al clientului
+  client.animals = (client.animals || 0) + 1;
+  renderAnimals(animals);
+  renderClients(clients);
+
+  // Ascunde modalul de animal
+  document.getElementById('modal-addAnimal').style.display = 'none';
+  resetAnimalForm();
+  _addAnimalForClientId = null;
+
+  // Întoarce-te la contextul corect
+  if (_addAnimalReturnTo === 'client' && _currentClientId) {
+    const c = clients.find(x => x.id === _currentClientId);
+    if (c) {
+      document.getElementById('modal-clientDetails').style.display = 'flex';
+      _renderClientDetails(c);
+    }
+    showToast(`&#x2713; Animal "${name}" ad&#x103;ugat pentru ${ownerName}!`);
+  } else if (_addAnimalReturnTo === 'appointment') {
+    document.getElementById('modal-addAppointment').style.display = 'flex';
+    populateApptAnimalSelector();
+    // Pre-selecteaz&#x103; noul animal (selector foloseste name ca valoare)
+    const sel = document.getElementById('appt-animal');
+    if (sel) sel.value = name;
+    showToast(`&#x2713; Animal "${name}" ad&#x103;ugat &#x219;i selectat în programare!`);
+  } else {
+    showToast(`&#x2713; Animal "${name}" salvat pentru ${ownerName}!`);
+  }
+  _addAnimalReturnTo = null;
+}
+
+function cancelAddAnimal() {
+  document.getElementById('modal-addAnimal').style.display = 'none';
+  resetAnimalForm();
+  _addAnimalForClientId = null;
+  if (_addAnimalReturnTo === 'client' && _currentClientId) {
+    document.getElementById('modal-clientDetails').style.display = 'flex';
+  } else if (_addAnimalReturnTo === 'appointment') {
+    document.getElementById('modal-addAppointment').style.display = 'flex';
+  }
+  _addAnimalReturnTo = null;
+}
+
+function saveAppointment() {
+  const animalVal = document.getElementById('appt-animal')?.value || '';
+  const vet       = document.getElementById('appt-vet')?.value   || '';
+  const room      = document.getElementById('appt-room')?.value  || '';
+  const date      = document.getElementById('appt-date')?.value  || '';
+  const time      = document.getElementById('appt-time')?.value  || '';
+  const reason    = document.getElementById('appt-reason')?.value.trim() || 'Consulta&#x21b;ie general&#x103;';
+  const status    = document.getElementById('appt-status')?.value || 'confirmed';
+
+  if (!animalVal) { showToast('&#x21a;️ Selecta&#x21b;i un animal!'); return; }
+  if (!vet)       { showToast('&#x21a;️ Selecta&#x21b;i medicul!');   return; }
+
+  // G&#x103;sim datele animalului din array
+  const animalObj = animals.find(a => a.name === animalVal);
+  const species   = animalObj?.species || '&#x2192;"';
+  const owner     = animalObj?.owner   || '&#x2192;"';
+
+  // Format&#x103;m data pentru afi&#x219;are
+  const [y, m, d] = date.split('-');
+  const displayDate = `${d}.${m}.${y}`;
+
+  // Ad&#x103;ug&#x103;m programarea la începutul array-ului
+  appointments.unshift({
+    time,
+    animal:  animalVal,
+    species,
+    owner,
+    reason,
+    vet,
+    room,
+    status,
+    date:    displayDate,
+  });
+
+  renderAppointments();
+  hideModal();
+  showToast(`&#x2713;" Programare salvat&#x103;: ${animalVal} la ${time}, ${room}`);
+}
+
+// ---- Start consulta&#x21b;ie din program&#x103;ri ----
+function startConsultation(animalName) {
+  nav('consultations');
+  showModal('addConsultation');
+  showToast('Consulta&#x21b;ie nou&#x103; deschis&#x103; pentru ' + animalName);
+}
+
+// ---- Export CSV real ----
+function downloadExportCsv() {
+  const format = document.getElementById('exp-format')?.value || 'csv';
+  const from   = document.getElementById('exp-from')?.value  || '2026-06-01';
+  const to     = document.getElementById('exp-to')?.value    || '2026-06-30';
+
+  let csvContent, filename;
+  if (format === 'csv_pay') {
+    const header = '﻿Data Plat&#x103;;Nr. Factur&#x103;;Client;Sum&#x103;;Metod&#x103;;Referin&#x21b;&#x103;\r\n';
+    const rows = [
+      `08.06.2026;VET-2026-000047;Andrei Dumitrescu;285,00;card;POS-0812`,
+      `07.06.2026;VET-2026-000046;Maria Ionescu;100,00;cash;`,
+      `03.06.2026;VET-2026-000044;Elena Constantin;720,00;bank_transfer;OP-20260603`,
+      `01.06.2026;VET-2026-000043;Andrei Dumitrescu;165,00;cash;`,
+      `28.05.2026;VET-2026-000042;Cabinet Vet Dr. Ionescu SRL;1240,00;bank_transfer;OP-20260528`,
+    ].join('\r\n');
+    csvContent = header + rows;
+    filename = `incasari_${from}_${to}.csv`;
+  } else {
+    const header = '﻿Data;Nr. Document;CUI/CNP Client;Denumire Client;Baza TVA 0%;Baza TVA 9%;Baza TVA 19%;TVA 9%;TVA 19%;Total Factur&#x103;;Status Plat&#x103;;Sum&#x103; &#xce;ncasat&#x103;;Jurnal\r\n';
+    const rows = [
+      `08.06.2026;VET-2026-000047;;Andrei Dumitrescu;0,00;261,47;0,00;23,53;0,00;285,00;paid;285,00;VZ`,
+      `07.06.2026;VET-2026-000046;;Maria Ionescu;0,00;179,36;0,00;16,14;0,00;195,50;partially_paid;100,00;VZ`,
+      `05.06.2026;VET-2026-000045;;Ion Popescu;0,00;412,84;0,00;37,16;0,00;450,00;issued;0,00;VZ`,
+      `03.06.2026;VET-2026-000044;;Elena Constantin;0,00;660,55;0,00;59,45;0,00;720,00;paid;720,00;VZ`,
+      `01.06.2026;VET-2026-000043;;Andrei Dumitrescu;0,00;151,38;0,00;13,62;0,00;165,00;paid;165,00;VZ`,
+      `28.05.2026;VET-2026-000042;RO12345678;Cabinet Vet Dr. Ionescu SRL;0,00;1138,53;0,00;101,47;0,00;1240,00;paid;1240,00;VZ`,
+      `25.05.2026;VET-2026-000041;;Ion Popescu;0,00;80,28;0,00;7,22;0,00;87,50;draft;0,00;VZ`,
+    ].join('\r\n');
+    csvContent = header + rows;
+    filename = `jurnal_vanzari_${from}_${to}.csv`;
+  }
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+  hideModal();
+  showToast('Fi&#x219;ier desc&#x103;rcat: ' + filename);
+}
+
+let _currentClientId = null;
+
+function showClientDetails(clientId) {
+  const c = clients.find(x => x.id === clientId);
+  if (!c) return;
+  _currentClientId = clientId;
+
+  // Ascunde formularul de editare la deschidere
+  const editForm = document.getElementById('cd-edit-form');
+  if (editForm) editForm.style.display = 'none';
+
+  _renderClientDetails(c);
+  showModal('clientDetails');
+}
+
+function _renderClientDetails(c) {
+  const initials = (c.firstName[0] + (c.lastName[0] || '')).toUpperCase();
+  document.getElementById('cd-avatar').textContent = initials;
+  document.getElementById('cd-name').textContent   = `${c.firstName} ${c.lastName}`.trim();
+  document.getElementById('cd-status').innerHTML   =
+    `<span class="badge" style="${c.active ? 'background:#dcfce7;color:#166534;' : 'background:#fdf3e3;color:#6b4a2e;'}">${c.active ? 'Client activ' : 'Inactiv'}</span>
+     ${c.cui ? `<span class="badge" style="background:#f3e8ff;color:#7e22ce;margin-left:6px;">PJ · ${c.cui}</span>` : ''}`;
+  document.getElementById('cd-phone').textContent   = c.phone   || '&#x2192;"';
+  document.getElementById('cd-email').textContent   = c.email   || '&#x2192;"';
+  document.getElementById('cd-address').textContent = c.address || '&#x2192;"';
+
+  const clientName = `${c.firstName} ${c.lastName}`.trim();
+  const ownedAnimals = animals.filter(a => a.owner === clientName);
+  const animalsEl = document.getElementById('cd-animals');
+  animalsEl.innerHTML = ownedAnimals.length
+    ? ownedAnimals.map(a => `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#fdf8f2;border-radius:8px;cursor:pointer;transition:background .15s;"
+             onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#f8fafc'"
+             onclick="hideModal();showAnimalProfile(${a.id})">
+          <span style="font-size:20px;">${a.species === 'Câine' ? '&#x1F43E;.' : '&#x1F43E;^'}</span>
+          <div style="flex:1;">
+            <span style="font-weight:500;">${a.name}</span>
+            <span style="color:#6b4a2e;font-size:13px;"> · ${a.species}, ${a.breed}</span>
+          </div>
+          <span style="font-size:12px;color:#b89275;">${a.age} · ${a.weight}</span>
+          <span style="font-size:12px;color:#e2ab3b;text-decoration:underline;">Fi&#x219;&#x103; medical&#x103; &#x2192;'</span>
+        </div>`).join('')
+    : `<div style="font-size:13px;color:#b89275;font-style:italic;padding:10px 0;">
+         Niciun animal înregistrat.
+         <button onclick="addAnimalForCurrentClient()" style="background:none;border:none;color:#e2ab3b;cursor:pointer;font-size:13px;text-decoration:underline;padding:0;margin-left:6px;">Adaug&#x103; primul animal &#x2192;'</button>
+       </div>`;
+
+  const clientConsults = consultations.filter(x => x.owner === clientName);
+  const consultsEl = document.getElementById('cd-consultations');
+  consultsEl.innerHTML = clientConsults.length
+    ? clientConsults.map((x, i) => `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#fdf8f2;border-radius:8px;cursor:pointer;"
+             onclick="hideModal();showConsultationDetails(${consultations.indexOf(x)})"
+             onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#f8fafc'">
+          <span style="font-size:12px;color:#b89275;white-space:nowrap;">${x.date}</span>
+          <div style="flex:1;font-size:13px;">
+            <strong>${x.animal}</strong>
+            <span style="color:#6b4a2e;"> &#x2192;" ${x.diagnosis}</span>
+          </div>
+          <span class="badge" style="${x.billed ? 'background:#dbeafe;color:#6b4228;' : 'background:#ffedd5;color:#9a3412;'}">${x.billed ? 'Facturat&#x103;' : 'Nefacturat&#x103;'}</span>
+        </div>`).join('')
+    : '<div style="font-size:13px;color:#b89275;font-style:italic;">Nicio consulta&#x21b;ie înregistrat&#x103;.</div>';
+}
+
+// ---- Ac&#x21b;iuni din fi&#x219;a clientului ----
+function editClientInline() {
+  const c = clients.find(x => x.id === _currentClientId);
+  if (!c) return;
+  document.getElementById('cd-edit-first').value   = c.firstName || '';
+  document.getElementById('cd-edit-last').value    = c.lastName  || '';
+  document.getElementById('cd-edit-phone').value   = c.phone     || '';
+  document.getElementById('cd-edit-email').value   = c.email     || '';
+  document.getElementById('cd-edit-address').value = c.address   || '';
+  document.getElementById('cd-edit-form').style.display = 'block';
+  document.getElementById('cd-edit-first').focus();
+}
+
+function saveClientEdit() {
+  const c = clients.find(x => x.id === _currentClientId);
+  if (!c) return;
+  const first   = document.getElementById('cd-edit-first').value.trim();
+  const last    = document.getElementById('cd-edit-last').value.trim();
+  const phone   = document.getElementById('cd-edit-phone').value.trim();
+  const email   = document.getElementById('cd-edit-email').value.trim();
+  const address = document.getElementById('cd-edit-address').value.trim();
+  if (!first) { showToast('&#x21a;️ Prenumele este obligatoriu!'); return; }
+
+  const oldName = `${c.firstName} ${c.lastName}`.trim();
+  const newName = `${first} ${last}`.trim();
+
+  c.firstName = first; c.lastName = last;
+  c.phone = phone; c.email = email; c.address = address;
+
+  // Actualizeaz&#x103; referin&#x21b;ele din animale &#x219;i consulta&#x21b;ii dac&#x103; s-a schimbat numele
+  if (oldName !== newName) {
+    animals.forEach(a => { if (a.owner === oldName) a.owner = newName; });
+    consultations.forEach(x => { if (x.owner === oldName) x.owner = newName; });
+    renderAnimals(animals);
+    renderConsultations();
+  }
+  renderClients(clients);
+
+  document.getElementById('cd-edit-form').style.display = 'none';
+  _renderClientDetails(c);
+  showToast(`&#x2713;" Datele clientului &#x2192;z${newName}" au fost actualizate.`);
+}
+
+function addAnimalForCurrentClient() {
+  const c = clients.find(x => x.id === _currentClientId);
+  if (!c) return;
+  document.getElementById('modal-clientDetails').style.display = 'none';
+  _addAnimalReturnTo = 'client';
+  _addAnimalForClientId = c.id;
+  resetAnimalForm();
+  populateAnimalOwnerSelector(c.id);
+  document.getElementById('modal-addAnimal').style.display = 'flex';
+}
+
+function newAppointmentForClient() {
+  const c = clients.find(x => x.id === _currentClientId);
+  if (!c) return;
+  document.getElementById('modal-clientDetails').style.display = 'none';
+  showModal('addAppointment');
+  // Pre-selecteaz&#x103; primul animal al clientului dac&#x103; exist&#x103;
+  const clientName = `${c.firstName} ${c.lastName}`.trim();
+  const firstAnimal = animals.find(a => a.owner === clientName);
+  if (firstAnimal) {
+    const sel = document.getElementById('appt-animal');
+    if (sel) sel.value = firstAnimal.name;
+  }
+  showToast(`Programare nou&#x103; pentru ${clientName}`);
+}
+
+// ---- TOAST ----
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.style.transform = 'translateY(0)';
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.transform = 'translateY(80px)'; t.style.opacity = '0'; }, 3200);
+}
+
+// Enter pe login
+document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('loginEmail').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+</body>
+</html>
+
+
+
+

@@ -1,0 +1,16 @@
+{
+  "name": "vet-hospital-system",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "db:bootstrap": "node scripts/bootstrap-db.mjs",
+    "db:bootstrap:dryrun": "node scripts/bootstrap-db-dryrun.mjs",
+    "db:generate": "npm run db:generate --workspace=apps/api",
+    "db:migrate": "npm run db:migrate --workspace=apps/api",
+    "db:studio": "npm run db:studio --workspace=apps/api"
+  }
+}

@@ -840,6 +840,21 @@
               <div id="dr-noshows-body">–</div>
             </div>
 
+            <!-- G-06: Rezumat AI -->
+            <div class="card" style="margin-top:4px;" id="daily-ai-section">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+                <div style="font-size:13px;font-weight:600;color:#2d1a0a;">🤖 Rezumat operațional AI</div>
+                <button onclick="generateAiDailySummary()" id="btn-ai-summary" class="btn-secondary" style="font-size:12px;padding:6px 14px;">
+                  Generează rezumat
+                </button>
+              </div>
+              <div id="daily-ai-content">
+                <div style="font-size:12px;color:#b89275;font-style:italic;">
+                  Apăsați „Generează rezumat" pentru a obține o analiză narativă a situației operaționale de ieri, generată de AI pe baza datelor din raport.
+                </div>
+              </div>
+            </div>
+
           </div><!-- /daily-content -->
         </div><!-- /page-daily -->
 
@@ -1154,8 +1169,22 @@
         </div>
       </div>
     </div>
-    <div style="display:flex;gap:10px;margin-top:24px;">
-      <button onclick="emiteFactura()" class="btn-primary" style="flex:1;justify-content:center;">Emite factura</button>
+    <!-- G-01: Panou verificare AI pre-emitere -->
+    <div id="inv-ai-panel" style="display:none;margin-top:18px;border-radius:10px;overflow:hidden;border:1px solid #e8d5b7;">
+      <div id="inv-ai-header" style="padding:10px 14px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;">
+        <span id="inv-ai-icon">🔍</span>
+        <span id="inv-ai-title">Verificare factură</span>
+        <span id="inv-ai-spinner" style="display:none;font-size:11px;color:#b89275;margin-left:auto;">Se verifică...</span>
+      </div>
+      <div id="inv-ai-body" style="padding:10px 14px 14px;"></div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button onclick="verificaFacturaAI()" id="btn-verify-ai" class="btn-secondary" style="gap:6px;">
+        🤖 Verifică factura
+      </button>
+      <div style="flex:1"></div>
+      <button onclick="emiteFactura()" class="btn-primary" style="justify-content:center;">Emite factura</button>
       <button onclick="salveazaCiorna()" class="btn-secondary">Salvează ciornă</button>
       <button onclick="hideModal()" class="btn-secondary">Anulează</button>
     </div>
@@ -3395,6 +3424,166 @@ function showToast(msg) {
 // Enter pe login
 document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 document.getElementById('loginEmail').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+// ==================== AI ASSISTANT ====================
+
+// G-01: Verificare factură pre-emitere
+async function verificaFacturaAI() {
+  const panel    = document.getElementById('inv-ai-panel');
+  const header   = document.getElementById('inv-ai-header');
+  const body     = document.getElementById('inv-ai-body');
+  const icon     = document.getElementById('inv-ai-icon');
+  const title    = document.getElementById('inv-ai-title');
+  const spinner  = document.getElementById('inv-ai-spinner');
+  const btn      = document.getElementById('btn-verify-ai');
+
+  // Colectează datele din state-ul modal existent
+  syncLinesFromDom();   // actualizează currentInvoiceLines din DOM
+  const lineCount   = (currentInvoiceLines || []).filter(l => l.desc || l.description).length;
+  const totalEl     = document.getElementById('inv-total');
+  const totalText   = (totalEl?.textContent ?? '').replace(/[^\d,.]/g, '').replace(',', '.');
+  const totalAmount = parseFloat(totalText) || 0;
+
+  // TVA 9% standard servicii veterinare
+  const subtotal  = +(totalAmount / 1.09).toFixed(2);
+  const vatAmount = +(totalAmount - subtotal).toFixed(2);
+
+  const invSeries  = document.getElementById('inv-series')?.value?.trim() || 'VET';
+
+  // Dacă factura vine din consultație, nr. servicii din consultație = nr. linii pre-completate
+  const consultSvcCount = (_invoicePrefill?.lines?.length) ?? undefined;
+
+  const dto = {
+    invoiceId:                _editingDraftNumber || 'draft-preview',
+    lineCount,
+    subtotal,
+    vatAmount,
+    totalAmount,
+    vatBreakdown:             [{ rate: 9, base: subtotal, vat: vatAmount }],
+    ownerType:                'individual',   // CUI nu e cached în frontend; verificarea B2B se face pe server
+    hasStornoRef:             false,
+    series:                   invSeries,
+    consultationServiceCount: consultSvcCount,
+    invoiceServiceCount:      lineCount,
+  };
+
+  // Afișează panoul în stare de loading
+  panel.style.display = 'block';
+  header.style.background = '#fdf8f2';
+  icon.textContent  = '🔍';
+  title.textContent = 'Verificare în curs...';
+  spinner.style.display = 'inline';
+  body.innerHTML    = '';
+  if (btn) { btn.disabled = true; btn.textContent = '🤖 Se verifică...'; }
+
+  const r = await apiRequest('POST', '/ai/invoices/verify', dto);
+
+  spinner.style.display = 'none';
+  if (btn) { btn.disabled = false; btn.textContent = '🤖 Verifică factura'; }
+
+  if (!r.ok) {
+    header.style.background = '#fef2f2';
+    icon.textContent  = '⚠️';
+    title.textContent = 'Verificare eșuată';
+    body.innerHTML    = `<div style="font-size:12px;color:#991b1b;">Serviciul AI nu este disponibil. Verificați manual factura înainte de emitere.</div>`;
+    return;
+  }
+
+  const res = r.data;
+  const status = res.status ?? (res.approved === false ? 'error' : 'ok');
+
+  const colors = { ok: '#f0fdf4', warning: '#fffbeb', error: '#fef2f2' };
+  const borderColors = { ok: '#bbf7d0', warning: '#fde68a', error: '#fecaca' };
+  const icons  = { ok: '✅', warning: '⚠️', error: '❌' };
+  const titles = { ok: 'Factură validată — ok să emiteți', warning: 'Atenționări înainte de emitere', error: 'Erori critice — nu emiteți factura' };
+  const titleColors = { ok: '#15803d', warning: '#92400e', error: '#991b1b' };
+
+  header.style.background = colors[status] ?? '#fdf8f2';
+  header.style.borderBottom = `1px solid ${borderColors[status] ?? '#e8d5b7'}`;
+  icon.textContent  = icons[status]  ?? '🔍';
+  title.textContent = titles[status] ?? 'Verificare completă';
+  title.style.color = titleColors[status] ?? '#2d1a0a';
+
+  let html = '';
+
+  const errors   = res.errors   ?? res.issues ?? [];
+  const warnings = res.warnings ?? [];
+
+  if (errors.length > 0) {
+    html += `<div style="margin-bottom:10px;">
+      <div style="font-size:11px;font-weight:700;color:#991b1b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Erori critice</div>
+      ${errors.map(e => `<div style="font-size:12px;color:#991b1b;padding:4px 0;display:flex;gap:6px;"><span>•</span><span>${e}</span></div>`).join('')}
+    </div>`;
+  }
+  if (warnings.length > 0) {
+    html += `<div style="margin-bottom:10px;">
+      <div style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Atenționări</div>
+      ${warnings.map(w => `<div style="font-size:12px;color:#92400e;padding:4px 0;display:flex;gap:6px;"><span>•</span><span>${w}</span></div>`).join('')}
+    </div>`;
+  }
+  if ((res.suggestions ?? []).length > 0) {
+    html += `<div style="margin-bottom:8px;">
+      <div style="font-size:11px;font-weight:700;color:#1e40af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Sugestii</div>
+      ${res.suggestions.map(s => `<div style="font-size:12px;color:#1e40af;padding:4px 0;display:flex;gap:6px;"><span>→</span><span>${s}</span></div>`).join('')}
+    </div>`;
+  }
+  if (res.summary) {
+    html += `<div style="font-size:12px;color:#6b7280;font-style:italic;margin-top:6px;padding-top:8px;border-top:1px solid ${borderColors[status] ?? '#e8d5b7'};">${res.summary}</div>`;
+  }
+  if (!html) {
+    html = '<div style="font-size:12px;color:#15803d;">Nicio problemă detectată. Factura poate fi emisă.</div>';
+  }
+
+  body.innerHTML = html;
+}
+
+// G-06: Rezumat operațional zilnic AI
+async function generateAiDailySummary() {
+  const contentEl = document.getElementById('daily-ai-content');
+  const btn       = document.getElementById('btn-ai-summary');
+
+  contentEl.innerHTML = `<div style="text-align:center;padding:20px;color:#b89275;font-size:13px;">🤖 Se generează rezumatul AI...</div>`;
+  if (btn) { btn.disabled = true; btn.textContent = 'Se generează...'; }
+
+  const r = await apiRequest('GET', '/ai/daily-summary/auto');
+
+  if (btn) { btn.disabled = false; btn.textContent = 'Regenerează'; }
+
+  if (!r.ok) {
+    contentEl.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px 14px;font-size:12px;color:#991b1b;">
+      Rezumatul AI nu este disponibil momentan. Datele operaționale sunt afișate mai sus.
+    </div>`;
+    return;
+  }
+
+  const d = r.data;
+  const genTime = d.generatedAt ? new Date(d.generatedAt).toLocaleTimeString('ro-RO', {hour:'2-digit',minute:'2-digit'}) : '';
+
+  let html = '';
+
+  if (d.narrative) {
+    html += `<div style="background:#fdf8f2;border-radius:8px;padding:14px 16px;margin-bottom:12px;font-size:13px;color:#2d1a0a;line-height:1.6;">
+      ${d.narrative.replace(/\n\n/g, '</p><p style="margin-top:8px;">').replace(/^/, '<p>').replace(/$/, '</p>')}
+    </div>`;
+  }
+
+  if ((d.priorityActions ?? []).length > 0) {
+    html += `<div style="margin-bottom:10px;">
+      <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Atenționări prioritare</div>
+      ${d.priorityActions.map((a, i) => `
+        <div style="display:flex;gap:10px;padding:8px 12px;background:${i%2===0?'#fffbeb':'#fff7ed'};border-radius:6px;margin-bottom:4px;font-size:12px;color:#92400e;">
+          <span style="font-weight:700;min-width:16px;">${i+1}.</span>
+          <span>${a}</span>
+        </div>`).join('')}
+    </div>`;
+  }
+
+  if (genTime) {
+    html += `<div style="font-size:11px;color:#b89275;margin-top:8px;text-align:right;">Generat la ${genTime} · claude-haiku-4-5</div>`;
+  }
+
+  contentEl.innerHTML = html || '<div style="font-size:12px;color:#b89275;font-style:italic;">Nicio atenționare prioritară pentru această zi.</div>';
+}
 
 // ==================== CONTABILITATE ====================
 

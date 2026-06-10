@@ -9,7 +9,7 @@ export class VatBreakdownItemDto {
 
 export class VerifyInvoiceDto {
   @IsString()                   invoiceId!:    string;
-  @IsNumber() @Min(1)           lineCount!:    number;
+  @IsNumber() @Min(0)           lineCount!:    number;
   @IsNumber()                   subtotal!:     number;
   @IsNumber()                   vatAmount!:    number;
   @IsNumber()                   totalAmount!:  number;
@@ -20,6 +20,11 @@ export class VerifyInvoiceDto {
   @IsIn(['individual', 'company'])  ownerType!:    'individual' | 'company';
   @IsBoolean()                      hasStornoRef!: boolean;
   @IsString()                       series!:       string;
+  // Câmpuri opționale pentru verificări suplimentare G-01
+  @IsOptional() @IsString()    billingCui?:              string;
+  @IsOptional() @IsNumber()    consultationServiceCount?: number;
+  @IsOptional() @IsNumber()    invoiceServiceCount?:      number;
+  @IsOptional() @IsString()    invoiceNumber?:            string;
 }
 
 export class ExplainSpvErrorDto {

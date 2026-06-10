@@ -6,5 +6,6 @@ import { AccountingExportService }  from './accounting-export.service';
 @Module({
   controllers: [ReportsController],
   providers:   [ReportsService, AccountingExportService],
+  exports:     [ReportsService, AccountingExportService],
 })
 export class ReportsModule {}

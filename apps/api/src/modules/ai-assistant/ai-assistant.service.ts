@@ -13,10 +13,14 @@ import Anthropic from '@anthropic-ai/sdk';
 // ---------------------------------------------------------------------------
 
 export interface InvoiceVerificationResult {
-  approved:    boolean;
-  issues:      string[];
+  status:      'ok' | 'warning' | 'error';
+  errors:      string[];
+  warnings:    string[];
   suggestions: string[];
   summary:     string;
+  // backward compat
+  approved:    boolean;
+  issues:      string[];
 }
 
 export interface SpvErrorExplanationResult {
@@ -42,15 +46,19 @@ export interface ReconciliationResult {
 
 // Date anonimizate trimise la Claude — fără PII
 interface InvoiceVerificationInput {
-  invoiceId:    string;
-  lineCount:    number;
-  subtotal:     number;
-  vatAmount:    number;
-  totalAmount:  number;
-  vatBreakdown: Array<{ rate: number; base: number; vat: number }>;
-  ownerType:    'individual' | 'company';
-  hasStornoRef: boolean;
-  series:       string;
+  invoiceId:                string;
+  lineCount:                number;
+  subtotal:                 number;
+  vatAmount:                number;
+  totalAmount:              number;
+  vatBreakdown:             Array<{ rate: number; base: number; vat: number }>;
+  ownerType:                'individual' | 'company';
+  hasStornoRef:             boolean;
+  series:                   string;
+  billingCui?:              string;
+  consultationServiceCount?: number;
+  invoiceServiceCount?:      number;
+  invoiceNumber?:            string;
 }
 
 interface DashboardInput {
@@ -64,6 +72,23 @@ interface DashboardInput {
   lowStockItems:         number;
   unbilledConsultations: number;
   unbilledEstimatedTotal: number;
+}
+
+// Input agregat intern pentru G-06 (date din getDailyReport + dashboardSummary)
+export interface DailyReportAggregateInput {
+  reportDate:            string;  // data raportului (ieri)
+  revenue:               number;
+  invoiceCount:          number;
+  paymentsByMethod:      Array<{ method: string; amount: number; count: number }>;
+  appointmentsToday:     number;
+  noShowYesterday:       number;
+  overdueReceivables:    number;  // număr facturi scadente
+  overdueAmount:         number;  // sumă totală scadentă
+  criticalStockItems:    number;
+  expiringIn7Days:       number;
+  spvPending:            number;
+  spvRejected:           number;
+  unbilledConsultations: number;
 }
 
 interface ReconciliationInput {
@@ -103,33 +128,90 @@ export class AiAssistantService {
   ): Promise<InvoiceVerificationResult> {
     this.logger.log({ event: 'ai_invoice_verify', invoiceId: input.invoiceId });
 
+    // ------------------------------------------------------------------
+    // Verificări locale sincrone (fără Claude) — răspuns instant
+    // ------------------------------------------------------------------
+    const localErrors:   string[] = [];
+    const localWarnings: string[] = [];
+
+    if (input.lineCount < 1) {
+      localErrors.push('Factura nu conține nicio linie de serviciu sau produs.');
+    }
+    const computedTotal = +(input.subtotal + input.vatAmount).toFixed(2);
+    if (Math.abs(computedTotal - input.totalAmount) > 0.02) {
+      localErrors.push(
+        `Totalul nu corespunde: subtotal ${input.subtotal.toFixed(2)} + TVA ${input.vatAmount.toFixed(2)} = ${computedTotal.toFixed(2)}, dar totalul declarat este ${input.totalAmount.toFixed(2)} RON.`,
+      );
+    }
+    if (input.ownerType === 'company' && !input.billingCui) {
+      localWarnings.push('Client persoană juridică fără CUI completat — facturile B2B necesită CUI valid pentru e-Factura.');
+    }
+    if (!input.series || input.series.trim() === '') {
+      localErrors.push('Serie factură lipsă. Configurați seria înainte de emitere.');
+    }
+    if (
+      input.consultationServiceCount !== undefined &&
+      input.invoiceServiceCount !== undefined &&
+      input.consultationServiceCount > input.invoiceServiceCount
+    ) {
+      localWarnings.push(
+        `Consultația conține ${input.consultationServiceCount} servicii/tratamente, dar factura include doar ${input.invoiceServiceCount}. Verificați dacă toate serviciile prestate sunt facturate.`,
+      );
+    }
+    if (!input.hasStornoRef && input.totalAmount < 0) {
+      localErrors.push('Total negativ pe o factură non-storno. Dacă este o notă de credit, bifați referința storno.');
+    }
+
+    // Dacă sunt erori critice locale → returnăm imediat fără a apela Claude
+    if (localErrors.length > 0) {
+      return {
+        status:      'error',
+        errors:      localErrors,
+        warnings:    localWarnings,
+        suggestions: ['Corectați erorile de mai sus înainte de a emite factura.'],
+        summary:     `${localErrors.length} erori critice detectate. Factura nu poate fi emisă în starea curentă.`,
+        approved:    false,
+        issues:      localErrors,
+      };
+    }
+
+    // ------------------------------------------------------------------
+    // Verificări contextuale Claude (doar dacă nu sunt erori locale)
+    // ------------------------------------------------------------------
+    const vatRatesNote = input.vatBreakdown.map(
+      (v) => `  • Cotă ${v.rate}%: bază ${v.base.toFixed(2)} RON, TVA ${v.vat.toFixed(2)} RON`,
+    ).join('\n') || '  • (nicio structură TVA)';
+
     const prompt = `Ești un asistent de verificare financiară pentru o clinică veterinară din România.
-Analizează datele facturii de mai jos și identifică eventuale probleme înainte de emitere.
+Analizează datele facturii și identifică probleme înainte de emitere.
 
 Date factură (toate valorile în RON):
+- Serie/Număr: ${input.series}${input.invoiceNumber ? '/' + input.invoiceNumber : ' (număr nealocat încă)'}
 - Număr linii: ${input.lineCount}
 - Subtotal (fără TVA): ${input.subtotal.toFixed(2)} RON
 - Total TVA: ${input.vatAmount.toFixed(2)} RON
 - Total cu TVA: ${input.totalAmount.toFixed(2)} RON
 - Structură TVA:
-${input.vatBreakdown.map((v) => `  • Cotă ${v.rate}%: bază ${v.base.toFixed(2)} RON, TVA ${v.vat.toFixed(2)} RON`).join('\n')}
-- Tip client: ${input.ownerType === 'company' ? 'persoană juridică' : 'persoană fizică'}
+${vatRatesNote}
+- Tip client: ${input.ownerType === 'company' ? 'persoană juridică (B2B)' : 'persoană fizică (B2C)'}
+- CUI client B2B: ${input.billingCui || 'ABSENT'}
 - Este notă de credit (storno): ${input.hasStornoRef ? 'DA' : 'NU'}
-- Serie factură: ${input.series}
+${input.consultationServiceCount !== undefined ? `- Servicii în consultație: ${input.consultationServiceCount}, Servicii pe factură: ${input.invoiceServiceCount ?? input.lineCount}` : ''}
 
 Verifică:
-1. Dacă suma subtotal + TVA = total (toleranță ±0.02 RON pentru rotunjiri)
-2. Dacă TVA calculat corespunde cotelor aplicabile serviciilor veterinare în România (0%, 9%, 19%)
-3. Dacă totalul este pozitiv pentru facturi normale și negativ pentru note de credit
-4. Dacă există linii (lineCount > 0)
-5. Orice altă anomalie evidentă
+1. Cotele TVA aplicabile pentru servicii veterinare în România (cota redusă 9% este standard)
+2. Coerența valorilor (rotunjiri, distribuție pe cote TVA)
+3. Orice anomalie contabilă sau risc de respingere e-Factura
+4. Dacă seria pare validă (litere mari, 2-4 caractere)
+
+Verificările matematice de bază au fost deja efectuate. Concentrează-te pe anomalii contabile și fiscale.
 
 Răspunde EXCLUSIV în format JSON, fără text în afara JSON-ului:
 {
-  "approved": true/false,
-  "issues": ["problemă 1", "problemă 2"],
-  "suggestions": ["sugestie 1", "sugestie 2"],
-  "summary": "rezumat scurt în 1-2 propoziții"
+  "errors":      ["eroare gravă 1"],
+  "warnings":    ["avertisment 1"],
+  "suggestions": ["sugestie 1"],
+  "summary":     "rezumat scurt în 1-2 propoziții"
 }`;
 
     try {
@@ -140,15 +222,37 @@ Răspunde EXCLUSIV în format JSON, fără text în afara JSON-ului:
       });
 
       const text = (response.content[0] as { type: 'text'; text: string }).text.trim();
-      const parsed = JSON.parse(text) as InvoiceVerificationResult;
-      return parsed;
+      const aiResult = JSON.parse(text) as {
+        errors: string[]; warnings: string[]; suggestions: string[]; summary: string;
+      };
+
+      const allErrors   = [...localErrors,   ...(aiResult.errors   ?? [])];
+      const allWarnings = [...localWarnings, ...(aiResult.warnings ?? [])];
+      const status: InvoiceVerificationResult['status'] =
+        allErrors.length > 0   ? 'error'   :
+        allWarnings.length > 0 ? 'warning' : 'ok';
+
+      return {
+        status,
+        errors:      allErrors,
+        warnings:    allWarnings,
+        suggestions: aiResult.suggestions ?? [],
+        summary:     aiResult.summary,
+        approved:    status !== 'error',
+        issues:      allErrors,
+      };
     } catch (err) {
       this.logger.error({ event: 'ai_invoice_verify_error', invoiceId: input.invoiceId });
+      const allWarnings = [...localWarnings];
+      const status: InvoiceVerificationResult['status'] = localErrors.length > 0 ? 'error' : (allWarnings.length > 0 ? 'warning' : 'ok');
       return {
-        approved:    false,
-        issues:      ['Verificarea automată nu a putut fi efectuată.'],
-        suggestions: ['Verificați manual totalurile și structura TVA înainte de emitere.'],
-        summary:     'Eroare la verificarea automată. Verificați manual.',
+        status,
+        errors:      localErrors,
+        warnings:    allWarnings,
+        suggestions: ['Verificarea AI nu a putut fi efectuată. Verificați manual totalurile și structura TVA.'],
+        summary:     'Verificare parțială (AI indisponibil). Verificările matematice locale au fost efectuate.',
+        approved:    status !== 'error',
+        issues:      localErrors,
       };
     }
   }
@@ -258,6 +362,81 @@ Răspunde EXCLUSIV în format JSON:
       this.logger.error({ event: 'ai_daily_summary_error', date: input.date });
       return {
         narrative:       'Rezumatul automat nu a putut fi generat. Verificați datele manual în dashboard.',
+        priorityActions: [],
+        generatedAt:     new Date().toISOString(),
+      };
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // 3b. G-06 — Rezumat zilnic din date agregate intern (fără input frontend)
+  // -------------------------------------------------------------------------
+
+  async generateDailySummaryFromReport(input: DailyReportAggregateInput): Promise<DailySummaryResult> {
+    this.logger.log({ event: 'ai_daily_summary_auto', date: input.reportDate });
+
+    const methodLines = input.paymentsByMethod.length > 0
+      ? input.paymentsByMethod.map(p => `  • ${p.method}: ${p.amount.toFixed(2)} RON (${p.count} tranzacții)`).join('\n')
+      : '  • nicio plată înregistrată';
+
+    const prompt = `Ești asistentul managerului unei clinici veterinare din România.
+Generează un rezumat operațional zilnic concis și profesional în română.
+
+Data raportată: ${input.reportDate}
+
+FINANCIAR:
+- Venituri facturate: ${input.revenue.toFixed(2)} RON (${input.invoiceCount} facturi)
+- Încasări pe metode de plată:
+${methodLines}
+
+OPERAȚIONAL:
+- Programări pentru azi: ${input.appointmentsToday}
+- No-show-uri ieri: ${input.noShowYesterday}
+- Consultații nefacturate în așteptare: ${input.unbilledConsultations}
+
+CREANȚE:
+- Facturi scadente neîncasate: ${input.overdueReceivables} facturi, total ${input.overdueAmount.toFixed(2)} RON
+
+STOC:
+- Produse sub nivelul minim: ${input.criticalStockItems}
+- Loturi care expiră în 7 zile: ${input.expiringIn7Days}
+
+e-FACTURA / SPV:
+- Facturi în așteptare ANAF: ${input.spvPending}
+- Facturi respinse ANAF: ${input.spvRejected}
+
+Generează:
+1. Un paragraf narativ de 3-5 propoziții cu situația zilei — ton calm, profesional, orientat spre acțiune
+2. Maxim 5 atenționări prioritare (doar dacă există probleme reale — nu inventa probleme dacă nu există)
+3. O scurtă concluzie de 1 propoziție
+
+Răspunde EXCLUSIV în format JSON:
+{
+  "narrative": "paragraful narativ...",
+  "priorityActions": ["atenționare 1", "atenționare 2"],
+  "conclusion": "concluzie scurtă..."
+}`;
+
+    try {
+      const response = await this.client.messages.create({
+        model:      this.model,
+        max_tokens: 700,
+        messages:   [{ role: 'user', content: prompt }],
+      });
+
+      const text = (response.content[0] as { type: 'text'; text: string }).text.trim();
+      const parsed = JSON.parse(text) as {
+        narrative: string; priorityActions: string[]; conclusion?: string;
+      };
+      return {
+        narrative:       parsed.narrative + (parsed.conclusion ? '\n\n' + parsed.conclusion : ''),
+        priorityActions: parsed.priorityActions ?? [],
+        generatedAt:     new Date().toISOString(),
+      };
+    } catch (err) {
+      this.logger.error({ event: 'ai_daily_summary_auto_error', date: input.reportDate });
+      return {
+        narrative:       'Rezumatul AI nu a putut fi generat. Verificați datele manual în secțiunile de mai sus.',
         priorityActions: [],
         generatedAt:     new Date().toISOString(),
       };

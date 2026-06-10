@@ -2584,9 +2584,9 @@ async function saveConsultation() {
     type:             'routine',
     chiefComplaint:   reason,
     ...(history   ? { history }        : {}),
-    ...(exam      ? { physicalExam: exam } : {}),
-    ...(diagnosis ? { diagnosis }      : {}),
-    ...(treatment ? { treatmentPlan: treatment } : {}),
+    ...(exam      ? { clinicalFindings: exam } : {}),
+    diagnosisPrimary: diagnosis || chiefComplaint,
+    ...(treatment ? { treatmentPlan: treatment }   : {}),
   };
 
   const btn = document.getElementById('btn-save-cons');

@@ -953,7 +953,13 @@
 // API CONFIG
 // ============================================================
 
-const API_BASE = 'http://localhost:3001/api/v1';
+// Auto-detect API URL:
+//   - local dev  (file:// sau localhost) → backend local port 3001
+//   - live demo (Cloudflare Pages)      → backend Render
+const _isLocal = ['localhost', '127.0.0.1', ''].includes(window.location.hostname);
+const API_BASE = _isLocal
+  ? 'http://localhost:3001/api/v1'
+  : 'https://nordskar-pims-demo.onrender.com/api/v1';
 
 // Token trăiește exclusiv în memorie (nu localStorage, nu cookie).
 // Tab nou = login nou — acceptabil pentru demo intern.

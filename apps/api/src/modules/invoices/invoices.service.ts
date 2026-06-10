@@ -253,7 +253,8 @@ export class InvoicesService {
 
     await withAuditContext(this.db, ctx, async (tx) => {
       // Generate sequential invoice number
-      const [{ nextval }] = await tx.execute(sql`SELECT nextval('invoice_number_seq')`) as unknown as [{ nextval: string }];
+      const _seqResult = await tx.execute(sql`SELECT nextval('invoice_number_seq')`);
+      const nextval = (_seqResult as unknown as { rows: Array<{ nextval: string }> }).rows[0].nextval;
       const year = new Date().getFullYear();
       const invoiceNumber = `${invoice.series}-${year}-${String(nextval).padStart(6, '0')}`;
 
@@ -370,7 +371,8 @@ export class InvoicesService {
       }).returning();
 
       // Generează număr factură pentru nota de credit
-      const [{ nextval }] = await tx.execute(sql`SELECT nextval('invoice_number_seq')`) as unknown as [{ nextval: string }];
+      const _seqResult = await tx.execute(sql`SELECT nextval('invoice_number_seq')`);
+      const nextval = (_seqResult as unknown as { rows: Array<{ nextval: string }> }).rows[0].nextval;
       const year = new Date().getFullYear();
       const invoiceNumber = `${creditInv.series}-${year}-${String(nextval).padStart(6, '0')}`;
       await tx.update(invoicesTable).set({ invoiceNumber }).where(eq(invoicesTable.id, creditInv.id));

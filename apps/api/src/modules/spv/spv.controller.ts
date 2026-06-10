@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Param, ParseUUIDPipe,
+  Controller, Get, Post, Param, Query, ParseUUIDPipe,
   UseGuards, HttpCode, HttpStatus, Req,
 } from '@nestjs/common';
 import { Request } from 'express';
@@ -73,5 +73,39 @@ export class SpvController {
   @Roles(...SPV_ROLES)
   getUnconfirmedAlerts() {
     return this.spvService.alertUnconfirmedSubmissions();
+  }
+
+  // -------------------------------------------------------------------------
+  // Dashboard SPV — Sesiunea 6
+  // -------------------------------------------------------------------------
+
+  // Sumar agregate pe statusuri + alerte >5 zile lucrătoare
+  @Get('summary')
+  @Roles(...SPV_ROLES)
+  getSummary() {
+    return this.spvService.getSummary();
+  }
+
+  // Listă submissions cu filtre + JOIN invoices + ultimul răspuns ANAF
+  @Get('submissions')
+  @Roles(...SPV_ROLES)
+  listSubmissions(
+    @Query('status')    status?:    string,
+    @Query('from')      from?:      string,
+    @Query('to')        to?:        string,
+    @Query('invoiceId') invoiceId?: string,
+    @Query('limit')     limit?:     string,
+  ) {
+    return this.spvService.listSubmissions({
+      status, from, to, invoiceId,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
+  }
+
+  // Explicare eroare SPV — AI dacă disponibil, fallback determinist
+  @Get('submissions/:id/explanation')
+  @Roles(...SPV_ROLES)
+  getExplanation(@Param('id', ParseUUIDPipe) id: string) {
+    return this.spvService.getExplanation(id);
   }
 }

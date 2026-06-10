@@ -19,6 +19,15 @@ import {
   CiusRoLine, CiusRoParty,
 } from './xml/cius-ro.generator';
 import { explainAnafErrors, parseAnafResponseErrors } from './anaf-error-mapper';
+import { AiAssistantService } from '../ai-assistant/ai-assistant.service';
+
+export interface SpvListFilters {
+  status?:    string;
+  from?:      string;
+  to?:        string;
+  invoiceId?: string;
+  limit?:     number;
+}
 
 // Număr maxim de zile fără confirmare ANAF înainte de alertă
 const UNCONFIRMED_ALERT_DAYS = 5;
@@ -32,6 +41,7 @@ export class SpvService {
     private readonly anafClient: AnafApiClient,
     private readonly xsdValidator: XsdValidator,
     private readonly config: ConfigService,
+    private readonly aiAssistant: AiAssistantService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -359,6 +369,215 @@ export class SpvService {
     }
 
     return alerts;
+  }
+
+  // ---------------------------------------------------------------------------
+  // 7. GET /spv/summary — agregate statusuri + alerte
+  // ---------------------------------------------------------------------------
+
+  async getSummary() {
+    const rows = await this.db.execute<{
+      total:         string;
+      pending:       string;
+      processing:    string;
+      accepted:      string;
+      rejected_err:  string;
+      stale:         string;
+    }>(sql`
+      SELECT
+        COUNT(*)                                                     ::TEXT AS total,
+        COUNT(*) FILTER (WHERE status = 'pending')                   ::TEXT AS pending,
+        COUNT(*) FILTER (WHERE status IN ('uploaded','processing'))   ::TEXT AS processing,
+        COUNT(*) FILTER (WHERE status = 'accepted')                  ::TEXT AS accepted,
+        COUNT(*) FILTER (WHERE status IN ('rejected','error'))        ::TEXT AS rejected_err,
+        COUNT(*) FILTER (
+          WHERE status IN ('uploaded','processing')
+            AND submitted_at IS NOT NULL
+            AND (
+              SELECT COUNT(*)
+              FROM generate_series(
+                submitted_at::date,
+                CURRENT_DATE - 1,
+                '1 day'::interval
+              ) AS gs(d)
+              WHERE EXTRACT(DOW FROM gs.d) BETWEEN 1 AND 5
+            ) >= 5
+        )                                                             ::TEXT AS stale
+      FROM spv_submissions
+    `);
+
+    const r = rows.rows[0] as Record<string, string>;
+    return {
+      total:              parseInt(r['total']        ?? '0', 10),
+      pending:            parseInt(r['pending']      ?? '0', 10),
+      processing:         parseInt(r['processing']   ?? '0', 10),
+      accepted:           parseInt(r['accepted']     ?? '0', 10),
+      rejectedOrError:    parseInt(r['rejected_err'] ?? '0', 10),
+      staleOver5Days:     parseInt(r['stale']        ?? '0', 10),
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // 8. GET /spv/submissions — listă cu filtre + JOIN invoices + ultimul răspuns
+  // ---------------------------------------------------------------------------
+
+  async listSubmissions(filters: SpvListFilters) {
+    const limit = Math.min(filters.limit ?? 100, 200);
+
+    const rows = await this.db.execute<{
+      id: string; invoice_number: string; status: string; upload_index: string | null;
+      submitted_at: string | null; accepted_at: string | null; rejected_at: string | null;
+      error_message: string | null; retry_count: string;
+      billing_name: string | null; billing_cui: string | null; issued_at: string | null;
+      total_amount: string;
+      last_anaf_message: string | null; last_human_explanation: string | null;
+      last_error_details: unknown; business_days: string;
+    }>(sql`
+      SELECT
+        s.id,
+        s.invoice_number,
+        s.status,
+        s.upload_index,
+        s.submitted_at::TEXT,
+        s.accepted_at::TEXT,
+        s.rejected_at::TEXT,
+        s.error_message,
+        s.retry_count::TEXT,
+        i.billing_name,
+        i.billing_cui,
+        i.issued_at::TEXT,
+        i.total_amount::TEXT,
+        (SELECT r.anaf_message
+         FROM spv_responses r
+         WHERE r.submission_id = s.id
+         ORDER BY r.received_at DESC LIMIT 1)  AS last_anaf_message,
+        (SELECT r.human_explanation
+         FROM spv_responses r
+         WHERE r.submission_id = s.id
+         ORDER BY r.received_at DESC LIMIT 1)  AS last_human_explanation,
+        (SELECT r.error_details
+         FROM spv_responses r
+         WHERE r.submission_id = s.id
+         ORDER BY r.received_at DESC LIMIT 1)  AS last_error_details,
+        COALESCE(
+          (SELECT COUNT(*)
+           FROM generate_series(
+             s.submitted_at::date,
+             CURRENT_DATE - 1,
+             '1 day'::interval
+           ) AS gs(d)
+           WHERE EXTRACT(DOW FROM gs.d) BETWEEN 1 AND 5),
+          0
+        )::TEXT                                 AS business_days
+      FROM spv_submissions s
+      JOIN invoices i ON i.id = s.invoice_id
+      WHERE i.deleted_at IS NULL
+        ${filters.status    ? sql`AND s.status = ${filters.status}`             : sql``}
+        ${filters.from      ? sql`AND s.submitted_at::date >= ${filters.from}`  : sql``}
+        ${filters.to        ? sql`AND s.submitted_at::date <= ${filters.to}`    : sql``}
+        ${filters.invoiceId ? sql`AND s.invoice_id = ${filters.invoiceId}::uuid`: sql``}
+      ORDER BY
+        CASE WHEN s.status IN ('rejected','error') THEN 0
+             WHEN s.status IN ('uploaded','processing') THEN 1
+             WHEN s.status = 'pending' THEN 2
+             ELSE 3 END,
+        s.created_at DESC
+      LIMIT ${limit}
+    `);
+
+    return rows.rows.map((row) => ({
+      id:                   row.id,
+      invoiceNumber:        row.invoice_number,
+      status:               row.status,
+      uploadIndex:          row.upload_index,
+      submittedAt:          row.submitted_at,
+      acceptedAt:           row.accepted_at,
+      rejectedAt:           row.rejected_at,
+      errorMessage:         row.error_message,
+      retryCount:           parseInt(row.retry_count ?? '0', 10),
+      billingName:          row.billing_name,
+      billingCui:           row.billing_cui,
+      issuedAt:             row.issued_at,
+      totalAmount:          parseFloat(row.total_amount ?? '0'),
+      lastAnafMessage:      row.last_anaf_message,
+      lastHumanExplanation: row.last_human_explanation,
+      lastErrorDetails:     row.last_error_details,
+      businessDaysPending:  parseInt(row.business_days ?? '0', 10),
+    }));
+  }
+
+  // ---------------------------------------------------------------------------
+  // 9. GET /spv/submissions/:id/explanation — AI + fallback determinist
+  // ---------------------------------------------------------------------------
+
+  async getExplanation(submissionId: string) {
+    const sub = await this.findSubmissionOrFail(submissionId);
+
+    // Cel mai recent răspuns ANAF
+    const responses = await this.db.select().from(spvResponsesTable)
+      .where(eq(spvResponsesTable.submissionId, submissionId))
+      .orderBy(sql`${spvResponsesTable.receivedAt} DESC`)
+      .limit(1);
+
+    const latestResponse = responses[0] ?? null;
+
+    // Erori structurate din ultimul răspuns
+    const parsedErrors: Array<{ errorCode: string; errorMessage: string }> =
+      latestResponse?.errorDetails
+        ? (Array.isArray(latestResponse.errorDetails)
+            ? latestResponse.errorDetails as Array<{ errorCode: string; errorMessage: string }>
+            : [])
+        : [];
+
+    // Erori din mesajul de eroare pe submission (pentru status 'error')
+    const rawMessage = sub.errorMessage ?? latestResponse?.anafMessage ?? '';
+
+    // Fallback determinist — întotdeauna disponibil
+    const deterministicText = parsedErrors.length > 0
+      ? explainAnafErrors(parsedErrors)
+      : (latestResponse?.humanExplanation ?? rawMessage ?? 'Niciun detaliu de eroare disponibil.');
+
+    // Disclaimer obligatoriu
+    const disclaimer =
+      'Sistemul nu face corecții automate, nu retrimite factura și nu modifică XML-ul. ' +
+      'Un operator autorizat trebuie să verifice datele, să storneze factura dacă este cazul și să emită una corectă.';
+
+    // Încearcă AI dacă există erori de explicat
+    if (parsedErrors.length > 0 || rawMessage) {
+      const errorCode = parsedErrors[0]?.errorCode ?? 'UNKNOWN';
+      const rawAnafMsg = parsedErrors.map(e => `[${e.errorCode}] ${e.errorMessage}`).join('; ') || rawMessage;
+
+      try {
+        const aiResult = await this.aiAssistant.explainSpvError(errorCode, rawAnafMsg);
+        this.logger.log({ event: 'ai_spv_explain_ok', submissionId });
+        return {
+          submissionId,
+          invoiceNumber:   sub.invoiceNumber,
+          status:          sub.status,
+          source:          'ai' as const,
+          title:           aiResult.title,
+          explanation:     aiResult.explanation,
+          steps:           aiResult.steps,
+          disclaimer:      aiResult.disclaimer ?? disclaimer,
+          rawErrors:       parsedErrors,
+        };
+      } catch {
+        this.logger.warn({ event: 'ai_spv_explain_fallback', submissionId });
+      }
+    }
+
+    // Fallback determinist
+    return {
+      submissionId,
+      invoiceNumber:   sub.invoiceNumber,
+      status:          sub.status,
+      source:          'deterministic' as const,
+      title:           parsedErrors[0] ? `Eroare ANAF: ${parsedErrors[0].errorCode}` : 'Status SPV',
+      explanation:     deterministicText,
+      steps:           [] as string[],
+      disclaimer,
+      rawErrors:       parsedErrors,
+    };
   }
 
   // ---------------------------------------------------------------------------

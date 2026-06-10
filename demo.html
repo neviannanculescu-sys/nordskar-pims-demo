@@ -916,6 +916,43 @@
   </div>
 </div>
 
+<!-- ==================== MODAL: ÎNREGISTRARE PLATĂ ==================== -->
+<div id="modal-addPayment" class="modal-backdrop" style="display:none;" onclick="if(event.target===this)closePaymentModal()">
+  <div class="modal" style="max-width:420px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <h3 style="font-size:17px;font-weight:600;margin:0;">Înregistrează plată</h3>
+      <button onclick="closePaymentModal()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#b89275;line-height:1;">–</button>
+    </div>
+    <div id="pay-invoice-info" style="background:#fdf8f2;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;color:#6b4a2e;"></div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div>
+        <label style="font-size:13px;font-weight:500;color:#3d2614;">Sumă plătită (RON) *</label>
+        <input id="pay-amount" type="number" min="0.01" step="0.01" placeholder="0.00"
+          style="width:100%;margin-top:4px;padding:8px 12px;border:1px solid #e8d5b7;border-radius:8px;font-size:14px;box-sizing:border-box;" />
+      </div>
+      <div>
+        <label style="font-size:13px;font-weight:500;color:#3d2614;">Metodă de plată *</label>
+        <select id="pay-method" style="width:100%;margin-top:4px;padding:8px 12px;border:1px solid #e8d5b7;border-radius:8px;font-size:14px;box-sizing:border-box;">
+          <option value="cash">Numerar</option>
+          <option value="card">Card</option>
+          <option value="bank_transfer">Transfer bancar</option>
+          <option value="voucher">Voucher</option>
+          <option value="other">Altă metodă</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:13px;font-weight:500;color:#3d2614;">Referință / chitanță</label>
+        <input id="pay-reference" type="text" placeholder="Nr. chitanță, referință tranzacție..."
+          style="width:100%;margin-top:4px;padding:8px 12px;border:1px solid #e8d5b7;border-radius:8px;font-size:14px;box-sizing:border-box;" />
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+      <button onclick="closePaymentModal()" class="btn-secondary">Anulează</button>
+      <button id="pay-save-btn" onclick="savePayment()" class="btn-primary">Înregistrează plata</button>
+    </div>
+  </div>
+</div>
+
 <!-- ==================== MODAL: EXPORT CONTABILITATE ==================== -->
 <div id="modal-exportAccounting" class="modal-backdrop" style="display:none;" onclick="if(event.target===this)hideModal()">
   <div class="modal" style="max-width:480px;">
@@ -2332,10 +2369,58 @@ function showInvoiceDetails(number) {
   if (inv.status === 'draft') {
     actionHtml += `<button onclick="openDraftForEditing('${inv.number}')" class="btn-primary">✓️ Editează ciornă</button>`;
   } else if (inv.status !== 'paid') {
-    actionHtml += `<button onclick="hideModal();showToast('Plată înregistrată pe factura ${inv.number}')" class="btn-primary">înregistrează plată</button>`;
+    const remaining = parseFloat(inv.total || 0) - parseFloat(inv.paid || 0);
+    actionHtml += `<button onclick="hideModal();openPaymentModal('${inv.id}','${inv.number}',${remaining.toFixed(2)})" class="btn-primary">Înregistrează plată</button>`;
   }
   document.getElementById('inv-detail-actions').innerHTML = actionHtml;
   showModal('invoiceDetails');
+}
+
+// ---- Plată nouă ----
+let _paymentInvoiceId   = null;
+let _paymentInvoiceNum  = null;
+let _paymentRemaining   = 0;
+
+function openPaymentModal(invoiceId, invoiceNumber, remaining) {
+  _paymentInvoiceId  = invoiceId;
+  _paymentInvoiceNum = invoiceNumber;
+  _paymentRemaining  = remaining;
+  document.getElementById('pay-amount').value    = remaining > 0 ? remaining.toFixed(2) : '';
+  document.getElementById('pay-method').value    = 'cash';
+  document.getElementById('pay-reference').value = '';
+  document.getElementById('pay-invoice-info').textContent =
+    `Factură ${invoiceNumber} · Sold rămas: ${remaining.toFixed(2)} RON`;
+  document.getElementById('modal-addPayment').style.display = 'flex';
+}
+
+function closePaymentModal() {
+  document.getElementById('modal-addPayment').style.display = 'none';
+  _paymentInvoiceId = null;
+}
+
+async function savePayment() {
+  const amount    = parseFloat(document.getElementById('pay-amount').value);
+  const method    = document.getElementById('pay-method').value;
+  const reference = document.getElementById('pay-reference').value.trim();
+
+  if (!amount || amount <= 0) { showToast('Ț️ Suma trebuie să fie mai mare decât 0!'); return; }
+  if (!_paymentInvoiceId)     { showToast('Ț️ Factură negăsită!'); return; }
+
+  const btn = document.getElementById('pay-save-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Se salvează...'; }
+
+  const dto = { amount: String(amount.toFixed(2)), paymentMethod: method };
+  if (reference) dto.reference = reference;
+
+  const r = await apiRequest('POST', `/invoices/${_paymentInvoiceId}/payments`, dto);
+
+  if (btn) { btn.disabled = false; btn.textContent = 'Înregistrează plata'; }
+
+  if (!r.ok) { showToast('Ț️ ' + r.message); return; }
+
+  closePaymentModal();
+  await loadInvoicesFromApi();
+  showToast(`✓ Plată de ${amount.toFixed(2)} RON înregistrată pe ${_paymentInvoiceNum}`);
 }
 
 // ---- Editare ciornă existentă ----

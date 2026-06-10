@@ -709,17 +709,23 @@
     </div>
     <div style="display:flex;flex-direction:column;gap:14px;">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div><label>Animal (pacient)</label><select><option>Max → Câine (Ion Popescu)</option><option>Luna → Pisică (Maria Ionescu)</option><option>Bella → Câine (Elena Constantin)</option></select></div>
-        <div><label>Medic curant</label><select><option>Dr. Ionescu Alexandru</option><option>Dr. Popescu Maria</option></select></div>
+        <div>
+          <label>Animal (pacient)</label>
+          <select id="cons-animal"><option value="">— Selectează animal —</option></select>
+        </div>
+        <div>
+          <label>Medic curant</label>
+          <select id="cons-vet"><option value="">— Selectează medic —</option></select>
+        </div>
       </div>
-      <div><label>Motiv prezentare</label><input type="text" placeholder="Descrie motivul consultației→" /></div>
-      <div><label>Anamneză</label><textarea rows="2" placeholder="Istoric medical relevant, medicamente administrate recent→"></textarea></div>
-      <div><label>Examen clinic</label><textarea rows="2" placeholder="Temperatură, greutate, aspecte clinice observate→"></textarea></div>
-      <div><label>Diagnostic</label><input type="text" placeholder="Diagnostic principal (ex: otită externă bilaterală)→" /></div>
-      <div><label>Plan de tratament</label><textarea rows="2" placeholder="Medicamente prescrise, doze, durată tratament, recomandări→"></textarea></div>
+      <div><label>Motiv prezentare</label><input id="cons-reason" type="text" placeholder="Descrie motivul consultației" /></div>
+      <div><label>Anamneză</label><textarea id="cons-history" rows="2" placeholder="Istoric medical relevant, medicamente administrate recent"></textarea></div>
+      <div><label>Examen clinic</label><textarea id="cons-exam" rows="2" placeholder="Temperatură, greutate, aspecte clinice observate"></textarea></div>
+      <div><label>Diagnostic</label><input id="cons-diagnosis" type="text" placeholder="Diagnostic principal (ex: otită externă bilaterală)" /></div>
+      <div><label>Plan de tratament</label><textarea id="cons-treatment" rows="2" placeholder="Medicamente prescrise, doze, durată tratament, recomandări"></textarea></div>
     </div>
     <div style="display:flex;gap:10px;margin-top:24px;">
-      <button onclick="hideModal();showToast('Consultație deschisă cu succes!')" class="btn-primary" style="flex:1;justify-content:center;">Deschide consultația</button>
+      <button id="btn-save-cons" onclick="saveConsultation()" class="btn-primary" style="flex:1;justify-content:center;">Deschide consultația</button>
       <button onclick="hideModal()" class="btn-secondary">Anulează</button>
     </div>
   </div>
@@ -910,6 +916,43 @@
   </div>
 </div>
 
+<!-- ==================== MODAL: ÎNREGISTRARE PLATĂ ==================== -->
+<div id="modal-addPayment" class="modal-backdrop" style="display:none;" onclick="if(event.target===this)closePaymentModal()">
+  <div class="modal" style="max-width:420px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <h3 style="font-size:17px;font-weight:600;margin:0;">Înregistrează plată</h3>
+      <button onclick="closePaymentModal()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#b89275;line-height:1;">–</button>
+    </div>
+    <div id="pay-invoice-info" style="background:#fdf8f2;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;color:#6b4a2e;"></div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div>
+        <label style="font-size:13px;font-weight:500;color:#3d2614;">Sumă plătită (RON) *</label>
+        <input id="pay-amount" type="number" min="0.01" step="0.01" placeholder="0.00"
+          style="width:100%;margin-top:4px;padding:8px 12px;border:1px solid #e8d5b7;border-radius:8px;font-size:14px;box-sizing:border-box;" />
+      </div>
+      <div>
+        <label style="font-size:13px;font-weight:500;color:#3d2614;">Metodă de plată *</label>
+        <select id="pay-method" style="width:100%;margin-top:4px;padding:8px 12px;border:1px solid #e8d5b7;border-radius:8px;font-size:14px;box-sizing:border-box;">
+          <option value="cash">Numerar</option>
+          <option value="card">Card</option>
+          <option value="bank_transfer">Transfer bancar</option>
+          <option value="voucher">Voucher</option>
+          <option value="other">Altă metodă</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:13px;font-weight:500;color:#3d2614;">Referință / chitanță</label>
+        <input id="pay-reference" type="text" placeholder="Nr. chitanță, referință tranzacție..."
+          style="width:100%;margin-top:4px;padding:8px 12px;border:1px solid #e8d5b7;border-radius:8px;font-size:14px;box-sizing:border-box;" />
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+      <button onclick="closePaymentModal()" class="btn-secondary">Anulează</button>
+      <button id="pay-save-btn" onclick="savePayment()" class="btn-primary">Înregistrează plata</button>
+    </div>
+  </div>
+</div>
+
 <!-- ==================== MODAL: EXPORT CONTABILITATE ==================== -->
 <div id="modal-exportAccounting" class="modal-backdrop" style="display:none;" onclick="if(event.target===this)hideModal()">
   <div class="modal" style="max-width:480px;">
@@ -1004,6 +1047,10 @@ async function apiRequest(method, path, body = null) {
 // { id: uuid, name: 'Câine'|'Pisică'|..., nameLower: 'câine' }
 let _speciesCache = [];
 
+// ── Cache veterinari ────────────────────────────────────────
+// { id: uuid, firstName, lastName, displayName }
+let _vetsCache = [];
+
 // Mapare nume demo → aproximare din API
 const SPECIES_ALIASES = {
   'câine':  'câine',
@@ -1075,6 +1122,143 @@ function petToAnimal(p, ownerName) {
     microchip:   p.chipNumber || '→',
     sex:         p.gender || 'unknown',
   };
+}
+
+// ── Mapare API appointment → shape demo ────────────────────
+function appointmentToDemo(a) {
+  const vetName = a.veterinarianFirstName
+    ? `Dr. ${a.veterinarianLastName} ${a.veterinarianFirstName}`
+    : (a.veterinarianId
+        ? (_vetsCache.find(v => v.id === a.veterinarianId)?.displayName || 'Dr. —')
+        : 'Nealocat');
+  const pet = animals.find(x => x.id === a.petId);
+  const client = clients.find(x => x.id === a.ownerId);
+  const d = new Date(a.scheduledAt);
+  const time = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  const STATUS_MAP = { scheduled:'pending', confirmed:'confirmed', in_progress:'confirmed', done:'confirmed', cancelled:'pending', no_show:'pending' };
+  return {
+    id:      a.id,
+    petId:   a.petId,
+    ownerId: a.ownerId,
+    time,
+    animal:  pet?.name  || '—',
+    species: pet?.species || '—',
+    owner:   client ? `${client.firstName} ${client.lastName}`.trim() : '—',
+    reason:  a.reason || '—',
+    vet:     vetName,
+    room:    a.roomId || 'Cabinet 1',
+    status:  STATUS_MAP[a.status] || 'pending',
+  };
+}
+
+// ── Mapare API consultation → shape demo ───────────────────
+function consultationToDemo(c) {
+  const pet    = animals.find(x => x.id === c.petId);
+  const client = clients.find(x => x.id === c.ownerId);
+  const vetName = c.veterinarianId
+    ? (_vetsCache.find(v => v.id === c.veterinarianId)?.displayName || 'Dr. —')
+    : 'Dr. —';
+  const d = new Date(c.consultationDate || c.createdAt);
+  const dateStr = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+  return {
+    id:         c.id,
+    petId:      c.petId,
+    ownerId:    c.ownerId,
+    date:       dateStr,
+    animal:     pet?.name || '—',
+    owner:      client ? `${client.firstName} ${client.lastName}`.trim() : '—',
+    vet:        vetName,
+    diagnosis:  c.diagnosis || c.chiefComplaint || '—',
+    procedures: c.treatmentPlan || '—',
+    status:     c.status === 'signed' ? 'signed' : 'open',
+    billed:     !!c.invoiceId,
+  };
+}
+
+// ── Mapare API invoice → shape demo ────────────────────────
+function invoiceToDemo(i) {
+  const client = clients.find(x => x.id === i.ownerId);
+  const clientName = client
+    ? (client.type === 'company' ? client.firstName : `${client.firstName} ${client.lastName}`.trim())
+    : (i.ownerName || '—');
+  const d = new Date(i.createdAt || i.issueDate);
+  const dateStr = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+  const totalNum = parseFloat(i.totalAmount || i.total || 0);
+  const paidNum  = parseFloat(i.paidAmount  || i.paid  || 0);
+  const STATUS_API_MAP = { draft:'draft', issued:'issued', paid:'paid', partially_paid:'partially_paid', cancelled:'draft', void:'draft' };
+  const spvMap = { accepted:'accepted', rejected:'rejected', processing:'processing', pending:'processing' };
+  return {
+    id:     i.id,
+    number: i.invoiceNumber || i.number || i.id?.slice(0,8),
+    client: clientName,
+    date:   dateStr,
+    total:  totalNum.toFixed(2).replace('.',','),
+    paid:   paidNum.toFixed(2).replace('.',','),
+    status: STATUS_API_MAP[i.status] || 'draft',
+    spv:    spvMap[i.spvStatus] || '—',
+    consultationId: i.consultationId || null,
+  };
+}
+
+// ── Load veterinari din API ─────────────────────────────────
+async function loadVets() {
+  const r = await apiRequest('GET', '/veterinarians');
+  if (r.ok && Array.isArray(r.data)) {
+    _vetsCache = r.data.map(v => ({
+      id:          v.id,
+      firstName:   v.firstName,
+      lastName:    v.lastName,
+      displayName: `Dr. ${v.lastName} ${v.firstName}`,
+    }));
+  }
+  // Populează selectul de medici din modal-addAppointment
+  _populateVetSelects();
+}
+
+function _populateVetSelects() {
+  ['appt-vet', 'cons-vet'].forEach(selId => {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = '';
+    _vetsCache.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.id;
+      opt.textContent = v.displayName;
+      sel.appendChild(opt);
+    });
+    if (current) sel.value = current;
+  });
+}
+
+// ── Load programări din API ─────────────────────────────────
+async function loadAppointmentsFromApi() {
+  const r = await apiRequest('GET', '/appointments?limit=100');
+  if (r.ok && Array.isArray(r.data)) {
+    appointments.length = 0;
+    r.data.forEach(a => appointments.push(appointmentToDemo(a)));
+  }
+  renderAppointments();
+}
+
+// ── Load consultații din API ────────────────────────────────
+async function loadConsultationsFromApi() {
+  const r = await apiRequest('GET', '/consultations?limit=100');
+  if (r.ok && Array.isArray(r.data)) {
+    consultations.length = 0;
+    r.data.forEach(c => consultations.push(consultationToDemo(c)));
+  }
+  renderConsultations();
+}
+
+// ── Load facturi din API ────────────────────────────────────
+async function loadInvoicesFromApi() {
+  const r = await apiRequest('GET', '/invoices?limit=100');
+  if (r.ok && Array.isArray(r.data)) {
+    invoices.length = 0;
+    r.data.forEach(i => invoices.push(invoiceToDemo(i)));
+  }
+  renderInvoices(invoices);
 }
 
 // ============================================================
@@ -1230,13 +1414,17 @@ function nav(page) {
 
 async function renderAll() {
   setSubtitle();
-  // Încarc species o singură dată (cache pentru toată sesiunea)
+  // Încarc species + vets o singură dată (cache pentru toată sesiunea)
   if (_speciesCache.length === 0) await loadSpecies();
+  if (_vetsCache.length === 0)    await loadVets();
   // Încarc clienți + animale din API
   await loadClientsFromApi();
-  renderAppointments();
-  renderConsultations();
-  renderInvoices(invoices);
+  // Încarc programări, consultații, facturi din API
+  await Promise.all([
+    loadAppointmentsFromApi(),
+    loadConsultationsFromApi(),
+    loadInvoicesFromApi(),
+  ]);
 }
 
 async function loadClientsFromApi() {
@@ -1386,14 +1574,15 @@ async function addDemoClient() {
     // Redeschide factura FĂRĂ reinit linii (datele sunt păstrate în DOM)
     const inv = document.getElementById('modal-addInvoice');
     if (inv) inv.style.display = 'flex';
-    // Adaugă clientul nou în selector și selectează-l
+    // Adaugă clientul nou în selector și selectează-l (cu UUID ca value)
     const sel = document.getElementById('inv-client');
     if (sel) {
-      const exists = [...sel.options].some(o => o.text === fullName);
+      const exists = [...sel.options].some(o => o.value === String(newClient.id));
       if (!exists) {
-        sel.insertBefore(new Option(fullName, fullName), sel.options[1]);
+        const opt = new Option(fullName, String(newClient.id));
+        sel.insertBefore(opt, sel.options[1]);
       }
-      sel.value = fullName;
+      sel.value = String(newClient.id);
     }
     showToast(`✓️ Client &ldquo;${fullName}&rdquo; creat și selectat în factură.`);
   } else {
@@ -1578,26 +1767,43 @@ function initInvoiceLines() {
   }
   renderInvoiceLines();
 
+  // Populează selectul de clienți cu UUID-uri reale
+  const sel = document.getElementById('inv-client');
+  if (sel) {
+    sel.innerHTML = '<option value="">— Selectează client —</option>';
+    clients.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.type === 'company'
+        ? c.firstName
+        : `${c.firstName} ${c.lastName}`.trim();
+      sel.appendChild(opt);
+    });
+  }
+
+  // Populează selectul de consultații nefacturate
+  const csel = document.getElementById('inv-consult');
+  if (csel) {
+    csel.innerHTML = '<option value="">— Fără consultație asociată —</option>';
+    consultations.filter(c => !c.billed && c.status === 'signed').forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = `${c.date} — ${c.animal}, ${c.vet}`;
+      csel.appendChild(opt);
+    });
+  }
+
   // Precompletează clientul dacă vine din consultație
-  if (_invoicePrefill && _invoicePrefill.client) {
-    const sel = document.getElementById('inv-client');
+  if (_invoicePrefill && _invoicePrefill.ownerId) {
     if (sel) {
-      // Adaugă opțiunea dacă nu există
-      const exists = [...sel.options].some(o => o.text === _invoicePrefill.client);
-      if (!exists) sel.insertBefore(new Option(_invoicePrefill.client, _invoicePrefill.client), sel.options[1]);
-      sel.value = _invoicePrefill.client;
-      // Dezactivează selectorul vizual → clientul e fixat din consultație
+      sel.value = _invoicePrefill.ownerId;
       sel.style.background = '#f0fdf4';
       sel.style.borderColor = '#86efac';
     }
-    // Afișează badge informativ lângă selector
+    if (csel && _invoicePrefill.consultationId) csel.value = _invoicePrefill.consultationId;
     const badge = document.getElementById('inv-client-badge');
-    if (badge) {
-      badge.textContent = '✓" Din consultație';
-      badge.style.display = 'inline-flex';
-    }
+    if (badge) { badge.textContent = '✓ Din consultație'; badge.style.display = 'inline-flex'; }
   } else {
-    const sel = document.getElementById('inv-client');
     if (sel) { sel.style.background = ''; sel.style.borderColor = ''; }
     const badge = document.getElementById('inv-client-badge');
     if (badge) badge.style.display = 'none';
@@ -1605,21 +1811,21 @@ function initInvoiceLines() {
 }
 
 // Deschide factura pre-completată din contextul unei consultații
-function openInvoiceFromConsultation(consultIdx) {
-  const c = consultations[consultIdx];
+function openInvoiceFromConsultation(consultId) {
+  // Suportă atât index numeric (legacy) cât și UUID
+  const c = typeof consultId === 'number'
+    ? consultations[consultId]
+    : consultations.find(x => x.id === consultId);
   if (!c) return;
 
-  // Construiește liniile din procedurile consultației
-  const procedureLines = c.procedures.split(',').map(p => ({
-    desc: p.trim(), qty: 1, price: 80
-  }));
-  procedureLines.unshift({ desc: 'Consultație generală', qty: 1, price: 150 });
-
   _invoicePrefill = {
-    client: c.owner,
-    consultationIdx: consultIdx,
-    animal: c.animal,
-    lines: procedureLines,
+    ownerId:        c.ownerId,
+    consultationId: c.id,
+    animal:         c.animal,
+    lines: [
+      { desc: 'Consultație generală', qty: 1, price: 150 },
+      ...c.procedures.split(',').filter(Boolean).map(p => ({ desc: p.trim(), qty: 1, price: 80 })),
+    ],
   };
 
   hideModal();
@@ -1714,78 +1920,61 @@ function _invoiceMeta(lines) {
   return { subtotal, total, date };
 }
 
-function emiteFactura() {
-  const client = document.getElementById('inv-client')?.value.trim() || '';
-  if (!client) { showToast('Ț️ Selectați un client!'); return; }
+async function _saveInvoiceApi(issue) {
+  const ownerId = document.getElementById('inv-client')?.value.trim() || '';
+  if (!ownerId) { showToast('Ț️ Selectați un client!'); return false; }
 
-  const lines = _collectLinesFromDom(true);
-  if (!lines.length) { showToast('Ț️ Adăugați cel puțin o linie cu descriere și preț!'); return; }
+  const lines = _collectLinesFromDom(issue);
+  if (issue && !lines.length) { showToast('Ț️ Adăugați cel puțin o linie cu descriere și preț!'); return false; }
 
-  const { total, date } = _invoiceMeta(lines);
-  const consultIdx = _invoicePrefill?.consultationIdx ?? null;
+  const consultationId = _invoicePrefill?.consultationId || undefined;
 
-  let number;
-  if (_editingDraftNumber) {
-    // Promovează ciorna existentă →  issued (suprascrie în loc)
-    number = _editingDraftNumber;
-    const idx = invoices.findIndex(i => i.number === number);
-    if (idx !== -1) {
-      invoices[idx] = { ...invoices[idx], client, total: total.toFixed(2).replace('.',','), status: 'issued', spv: 'processing', date };
-    }
-    invoiceLines[number] = lines;
+  // Construiesc DTO
+  const apiLines = lines.map((l, i) => ({
+    description: l.desc || l.description || 'Serviciu veterinar',
+    quantity:    String(l.qty  || 1),
+    unitPrice:   String(l.price || 0),
+    vatRate:     '9',
+    position:    i,
+  }));
+
+  const dto = {
+    ownerId,
+    ...(consultationId ? { consultationId } : {}),
+    ...(apiLines.length ? { lines: apiLines } : {}),
+    series: document.getElementById('inv-series')?.value || 'VET',
+  };
+
+  let invoiceId = _editingDraftNumber;  // draft ID dacă edităm
+
+  if (!invoiceId) {
+    // Creează ciornă nouă
+    const r = await apiRequest('POST', '/invoices', dto);
+    if (!r.ok) { showToast('Ț️ ' + r.message); return false; }
+    invoiceId = r.data?.id;
+  }
+
+  if (issue && invoiceId) {
+    // Emite factura (o face IMUABILĂ)
+    const ri = await apiRequest('POST', `/invoices/${invoiceId}/issue`, {});
+    if (!ri.ok) { showToast('Ț️ Emitere: ' + ri.message); return false; }
+    await loadInvoicesFromApi();
+    _resetInvoiceState();
+    nav('invoices');
+    hideModal();
+    showToast(`✓ Factura emisă și trimisă la ANAF SPV!`);
   } else {
-    // Factură nouă
-    const nextNum = String(invoices.length + 48).padStart(6, '0');
-    number = `VET-2026-000${nextNum}`;
-    invoices.unshift({ number, client, date, total: total.toFixed(2).replace('.',','), paid: '0,00', status: 'issued', spv: 'processing', consultationIdx: consultIdx });
-    invoiceLines[number] = lines;
+    await loadInvoicesFromApi();
+    _resetInvoiceState();
+    nav('invoices');
+    hideModal();
+    showToast(`Ciornă salvată — nu a fost trimisă la ANAF.`);
   }
-
-  // Marchează consultația ca facturată
-  if (consultIdx !== null && consultations[consultIdx]) {
-    consultations[consultIdx].billed = true;
-    renderConsultations();
-  }
-
-  _resetInvoiceState();
-  renderInvoices(invoices);
-  nav('invoices');
-  hideModal();
-  showToast(`✓" Factura ${number} emisă și trimisă la ANAF SPV!`);
+  return true;
 }
 
-function salveazaCiorna() {
-  const client = document.getElementById('inv-client')?.value.trim() || '';
-  if (!client) { showToast('Ț️ Selectați un client!'); return; }
-
-  const lines = _collectLinesFromDom(false);
-  const { total, date } = _invoiceMeta(lines);
-
-  let number;
-  if (_editingDraftNumber) {
-    // Actualizează ciorna existentă → păstrează numărul
-    number = _editingDraftNumber;
-    const idx = invoices.findIndex(i => i.number === number);
-    if (idx !== -1) {
-      invoices[idx] = { ...invoices[idx], client, total: total.toFixed(2).replace('.',',') };
-    }
-    invoiceLines[number] = lines;
-  } else {
-    // Ciornă nouă
-    const nextNum = String(invoices.length + 48).padStart(6, '0');
-    number = `VET-2026-000${nextNum}`;
-    const now  = new Date();
-    const date2 = `${String(now.getDate()).padStart(2,'0')}.${String(now.getMonth()+1).padStart(2,'0')}.${now.getFullYear()}`;
-    invoices.unshift({ number, client, date: date2, total: total.toFixed(2).replace('.',','), paid: '0,00', status: 'draft', spv: '–' });
-    invoiceLines[number] = lines;
-  }
-
-  _resetInvoiceState();
-  renderInvoices(invoices);
-  nav('invoices');
-  hideModal();
-  showToast(`Ciornă ${number} salvată → nu a fost trimisă la ANAF.`);
-}
+async function emiteFactura() { await _saveInvoiceApi(true); }
+async function salveazaCiorna() { await _saveInvoiceApi(false); }
 
 // ============================================================
 // MODALS → funcții de deschidere
@@ -1804,9 +1993,21 @@ function showModal(id) {
   }
   if (id === 'addAppointment') {
     populateApptAnimalSelector();
+    _populateVetSelects();
     // Resetează câmpurile la deschidere fresh
     const dateEl = document.getElementById('appt-date');
-    if (dateEl && !dateEl.value) dateEl.value = '2026-06-10';
+    if (dateEl && !dateEl.value) {
+      const today = new Date();
+      dateEl.value = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    }
+  }
+  if (id === 'addConsultation') {
+    _populateConsAnimalSelector();
+    _populateVetSelects();
+    // Reset form
+    ['cons-reason','cons-history','cons-exam','cons-diagnosis','cons-treatment'].forEach(fid => {
+      const el = document.getElementById(fid); if (el) el.value = '';
+    });
   }
   _returningToInvoice = false;
 }
@@ -2168,10 +2369,58 @@ function showInvoiceDetails(number) {
   if (inv.status === 'draft') {
     actionHtml += `<button onclick="openDraftForEditing('${inv.number}')" class="btn-primary">✓️ Editează ciornă</button>`;
   } else if (inv.status !== 'paid') {
-    actionHtml += `<button onclick="hideModal();showToast('Plată înregistrată pe factura ${inv.number}')" class="btn-primary">înregistrează plată</button>`;
+    const remaining = parseFloat(inv.total || 0) - parseFloat(inv.paid || 0);
+    actionHtml += `<button onclick="hideModal();openPaymentModal('${inv.id}','${inv.number}',${remaining.toFixed(2)})" class="btn-primary">Înregistrează plată</button>`;
   }
   document.getElementById('inv-detail-actions').innerHTML = actionHtml;
   showModal('invoiceDetails');
+}
+
+// ---- Plată nouă ----
+let _paymentInvoiceId   = null;
+let _paymentInvoiceNum  = null;
+let _paymentRemaining   = 0;
+
+function openPaymentModal(invoiceId, invoiceNumber, remaining) {
+  _paymentInvoiceId  = invoiceId;
+  _paymentInvoiceNum = invoiceNumber;
+  _paymentRemaining  = remaining;
+  document.getElementById('pay-amount').value    = remaining > 0 ? remaining.toFixed(2) : '';
+  document.getElementById('pay-method').value    = 'cash';
+  document.getElementById('pay-reference').value = '';
+  document.getElementById('pay-invoice-info').textContent =
+    `Factură ${invoiceNumber} · Sold rămas: ${remaining.toFixed(2)} RON`;
+  document.getElementById('modal-addPayment').style.display = 'flex';
+}
+
+function closePaymentModal() {
+  document.getElementById('modal-addPayment').style.display = 'none';
+  _paymentInvoiceId = null;
+}
+
+async function savePayment() {
+  const amount    = parseFloat(document.getElementById('pay-amount').value);
+  const method    = document.getElementById('pay-method').value;
+  const reference = document.getElementById('pay-reference').value.trim();
+
+  if (!amount || amount <= 0) { showToast('Ț️ Suma trebuie să fie mai mare decât 0!'); return; }
+  if (!_paymentInvoiceId)     { showToast('Ț️ Factură negăsită!'); return; }
+
+  const btn = document.getElementById('pay-save-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Se salvează...'; }
+
+  const dto = { amount: String(amount.toFixed(2)), paymentMethod: method };
+  if (reference) dto.reference = reference;
+
+  const r = await apiRequest('POST', `/invoices/${_paymentInvoiceId}/payments`, dto);
+
+  if (btn) { btn.disabled = false; btn.textContent = 'Înregistrează plata'; }
+
+  if (!r.ok) { showToast('Ț️ ' + r.message); return; }
+
+  closePaymentModal();
+  await loadInvoicesFromApi();
+  showToast(`✓ Plată de ${amount.toFixed(2)} RON înregistrată pe ${_paymentInvoiceNum}`);
 }
 
 // ---- Editare ciornă existentă ----
@@ -2203,9 +2452,11 @@ function populateApptAnimalSelector() {
   const sel = document.getElementById('appt-animal');
   if (!sel) return;
   // Păstrează prima opțiune goală, reconstruiește restul din array-ul animals
-  sel.innerHTML = '<option value="">→ Selectează animal →</option>';
+  sel.innerHTML = '<option value="">— Selectează animal —</option>';
   animals.forEach(a => {
-    const opt = new Option(`${a.name} → ${a.species} (${a.owner})`, a.name);
+    const opt = document.createElement('option');
+    opt.value = a.id;  // UUID pentru API
+    opt.textContent = `${a.name} — ${a.species} (${a.owner})`;
     sel.appendChild(opt);
   });
 }
@@ -2358,50 +2609,112 @@ function cancelAddAnimal() {
   _addAnimalReturnTo = null;
 }
 
-function saveAppointment() {
-  const animalVal = document.getElementById('appt-animal')?.value || '';
-  const vet       = document.getElementById('appt-vet')?.value   || '';
-  const room      = document.getElementById('appt-room')?.value  || '';
-  const date      = document.getElementById('appt-date')?.value  || '';
-  const time      = document.getElementById('appt-time')?.value  || '';
-  const reason    = document.getElementById('appt-reason')?.value.trim() || 'Consultație generală';
-  const status    = document.getElementById('appt-status')?.value || 'confirmed';
+async function saveAppointment() {
+  const petId  = document.getElementById('appt-animal')?.value || '';
+  const vetId  = document.getElementById('appt-vet')?.value    || '';
+  const date   = document.getElementById('appt-date')?.value   || '';
+  const time   = document.getElementById('appt-time')?.value   || '10:00';
+  const reason = document.getElementById('appt-reason')?.value.trim() || 'Consultație generală';
+  const notes  = document.getElementById('appt-notes')?.value.trim()  || undefined;
 
-  if (!animalVal) { showToast('Ț️ Selectați un animal!'); return; }
-  if (!vet)       { showToast('Ț️ Selectați medicul!');   return; }
+  if (!petId)  { showToast('Ț️ Selectați un animal!'); return; }
+  if (!vetId)  { showToast('Ț️ Selectați medicul!');   return; }
+  if (!date)   { showToast('Ț️ Selectați data!');      return; }
 
-  // Găsim datele animalului din array
-  const animalObj = animals.find(a => a.name === animalVal);
-  const species   = animalObj?.species || '–';
-  const owner     = animalObj?.owner   || '–';
+  const animal = animals.find(a => String(a.id) === String(petId));
+  if (!animal) { showToast('Ț️ Animal negăsit!'); return; }
 
-  // Formatăm data pentru afișare
-  const [y, m, d] = date.split('-');
-  const displayDate = `${d}.${m}.${y}`;
+  const ownerId = animal.ownerId
+    || clients.find(c => `${c.firstName} ${c.lastName}`.trim() === animal.owner)?.id;
+  if (!ownerId) { showToast('Ț️ Nu s-a putut determina proprietarul!'); return; }
 
-  // Adăugăm programarea la începutul array-ului
-  appointments.unshift({
-    time,
-    animal:  animalVal,
-    species,
-    owner,
-    reason,
-    vet,
-    room,
-    status,
-    date:    displayDate,
-  });
+  const scheduledAt = `${date}T${time}:00.000Z`;
+  const dto = { petId, ownerId, veterinarianId: vetId, scheduledAt, type: 'routine', reason, source: 'internal' };
+  if (notes) dto.notes = notes;
 
-  renderAppointments();
+  const btn = document.querySelector('#modal-addAppointment .btn-primary');
+  if (btn) { btn.disabled = true; btn.textContent = 'Se salvează...'; }
+
+  const r = await apiRequest('POST', '/appointments', dto);
+
+  if (btn) { btn.disabled = false; btn.textContent = 'Salvează programarea'; }
+
+  if (!r.ok) { showToast('Ț️ ' + r.message); return; }
+
+  await loadAppointmentsFromApi();
   hideModal();
-  showToast(`✓" Programare salvată: ${animalVal} la ${time}, ${room}`);
+  showToast(`✓ Programare salvată: ${animal.name} la ${time}`);
+}
+
+async function saveConsultation() {
+  const petId    = document.getElementById('cons-animal')?.value || '';
+  const vetId    = document.getElementById('cons-vet')?.value    || '';
+  const reason   = document.getElementById('cons-reason')?.value.trim()    || '';
+  const history  = document.getElementById('cons-history')?.value.trim()   || undefined;
+  const exam     = document.getElementById('cons-exam')?.value.trim()      || undefined;
+  const diagnosis= document.getElementById('cons-diagnosis')?.value.trim() || undefined;
+  const treatment= document.getElementById('cons-treatment')?.value.trim() || undefined;
+
+  if (!petId)  { showToast('Ț️ Selectați un animal!');      return; }
+  if (!vetId)  { showToast('Ț️ Selectați medicul curant!'); return; }
+  if (!reason) { showToast('Ț️ Completați motivul prezentării!'); return; }
+
+  const animal = animals.find(a => String(a.id) === String(petId));
+  if (!animal) { showToast('Ț️ Animal negăsit!'); return; }
+  const ownerId = animal.ownerId
+    || clients.find(c => `${c.firstName} ${c.lastName}`.trim() === animal.owner)?.id;
+  if (!ownerId) { showToast('Ț️ Nu s-a putut determina proprietarul!'); return; }
+
+  const dto = {
+    petId,
+    ownerId,
+    veterinarianId:   vetId,
+    consultationDate: new Date().toISOString(),
+    type:             'routine',
+    chiefComplaint:   reason,
+    ...(history   ? { history }        : {}),
+    ...(exam      ? { clinicalFindings: exam } : {}),
+    diagnosisPrimary: diagnosis || chiefComplaint,
+    ...(treatment ? { treatmentPlan: treatment }   : {}),
+  };
+
+  const btn = document.getElementById('btn-save-cons');
+  if (btn) { btn.disabled = true; btn.textContent = 'Se salvează...'; }
+
+  const r = await apiRequest('POST', '/consultations', dto);
+
+  if (btn) { btn.disabled = false; btn.textContent = 'Deschide consultația'; }
+
+  if (!r.ok) { showToast('Ț️ ' + r.message); return; }
+
+  await loadConsultationsFromApi();
+  hideModal();
+  showToast(`✓ Consultație deschisă pentru ${animal.name}.`);
 }
 
 // ---- Start consultație din programări ----
 function startConsultation(animalName) {
   nav('consultations');
+  // Pre-populate animalul în modal
+  _populateConsAnimalSelector();
   showModal('addConsultation');
-  showToast('Consultație nouă deschisă pentru ' + animalName);
+  const sel = document.getElementById('cons-animal');
+  if (sel) {
+    const opt = [...sel.options].find(o => o.textContent.startsWith(animalName + ' '));
+    if (opt) sel.value = opt.value;
+  }
+}
+
+function _populateConsAnimalSelector() {
+  const sel = document.getElementById('cons-animal');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Selectează animal —</option>';
+  animals.forEach(a => {
+    const opt = document.createElement('option');
+    opt.value = a.id;
+    opt.textContent = `${a.name} — ${a.species} (${a.owner})`;
+    sel.appendChild(opt);
+  });
 }
 
 // ---- Export CSV real ----

@@ -98,13 +98,13 @@ HANDOFF.md                                                         [CREATED]
 
 ## Ce a rămas deschis (non-blocant)
 
-1. **Backfill tratament-linii existente**: liniile de tratament create înainte de implementarea stocului nu au `inventoryItemId` setat. Necesită o migrație SQL manuală de UPDATE pentru a lega liniile istorice de produsele din catalog.
+1. **`performedByName` în product movement drawer** (`getMovementHistory()`): serviciul nu face JOIN pe `users` — drawer-ul afișează data, tipul, lot, note, cantitate, dar nu numele utilizatorului care a efectuat mișcarea. Fix: adaugă `LEFT JOIN users ON stock_movements.performed_by = users.id` în `getMovementHistory()` și expune `performedByName` în response.
 
-2. **Testare vizuală end-to-end**: pagina Stocuri din demo.html trebuie testată manual pe `https://nordskar-pims-demo.pages.dev` cu datele reale din Neon DB după deploy.
+2. **Backfill treatment-lines istorice fără `inventoryItemId`**: liniile de tratament create înainte de implementarea modulului de stocuri nu au `inventoryItemId` setat — `dispense()` nu va auto-deduce pentru ele. Necesită UPDATE SQL manual cu confirmare umană (un produs = o linie, risc de eroare dacă produsele nu se potrivesc exact).
 
-3. **`getMovementHistory()` nu returnează `performedByName`**: drawer-ul de detalii nu afișează numele utilizatorului — doar data, tipul, lot, note. Dacă e nevoie, serviciul trebuie extins cu un JOIN pe `users`.
+3. **Paginare catalog items > 200**: `loadInventory()` în demo.html încarcă `limit=200`. Dacă catalogul crește, trebuie adăugat scroll infinit sau paginare server-side (query param `page` există deja în backend).
 
-4. **Paginare pentru items > 200**: `loadInventory()` încarcă `limit=200`. Dacă catalogul crește, trebuie adăugat scroll infinit sau paginare în UI.
+> Testarea vizuală end-to-end a paginii Stocuri a fost efectuată live pe `https://nordskar-pims-demo.pages.dev` — toate fluxurile funcționează (Create, IN, OUT, dispense, detalii drawer, alerte).
 
 ---
 

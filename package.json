@@ -14,5 +14,8 @@
     "db:studio": "npm run db:studio --workspace=apps/api",
     "build": "npm run build --workspace=apps/api",
     "start": "node apps/api/dist/src/main.js"
+  },
+  "devDependencies": {
+    "pdfkit": "^0.19.1"
   }
 }

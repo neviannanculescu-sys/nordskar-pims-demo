@@ -1,7 +1,7 @@
 # HANDOFF — Nordskar PIMS Veterinar
 
 **Data:** 2026-06-11  
-**Stare:** MVP backend complet livrat + demo frontend funcțional
+**Stare:** MVP backend complet livrat + validat live. Toate fluxurile inventory testate end-to-end.
 
 ---
 
@@ -64,6 +64,22 @@ HANDOFF.md                                                         [CREATED]
 | DTO fields vs form fields | ✅ Aliniate complet |
 | Schema Drizzle vs serviciu | ✅ Aliniate complet |
 
+### Validare live (Render prod, 2026-06-11)
+
+| Test | Rezultat |
+|---|---|
+| Create Product | ✅ 201, stock=0 inițial |
+| Stock IN qty=20 purchase_receipt | ✅ stockBefore=0 → after=20, currentStock=20 |
+| Stock OUT qty=7 direct_sale | ✅ stockBefore=20 → after=13, currentStock=13 |
+| Stock OUT peste limită (qty=100) | ✅ 400 "Insufficient stock", stoc neatins |
+| Movement history sincronizat | ✅ 2 records corecte, descrescător |
+| Create Treatment Line cu inventoryItemId | ✅ 201, isDispensed=false |
+| dispense() auto-deducere qty=3 | ✅ 13→10, movement consultation_use creat, referenceType=treatment_line |
+| dispense() idempotency (a 2-a oară) | ✅ 400 "already dispensed", stoc neatins |
+| Edit Product PATCH isActive | ✅ Toggle false/true funcționează |
+| Alert lowStock (minStock > currentStock) | ✅ Item apare în alerts.lowStock |
+| Global movements feed performedByName | ✅ "Admin Nordskar" prezent |
+
 ---
 
 ## Decizii tehnice importante
@@ -71,6 +87,8 @@ HANDOFF.md                                                         [CREATED]
 1. **Auto-deducere fără injection circular**: `TreatmentLinesService.dispense()` operează direct pe tabelele Drizzle (`inventoryItemsTable`, `stockMovementsTable`) în aceeași tranzacție — evită importarea `InventoryModule` și dependința circulară.
 
 2. **Re-fetch după dispense**: `dispense()` returnează `this.findOneOrFail(id)` după tranzacție (nu rezultatul din RETURNING) — garantează că UI primește starea reală din DB, inclusiv câmpuri setate de triggere.
+
+3. **Bug fix post-deploy**: `tx.execute(sql`SELECT...FOR UPDATE`)` în Drizzle node-postgres returnează `{ rows: [...] }`, nu un array direct. Accesul incorect cu `[0]` dădea `undefined → parseFloat('0') = 0`, cauzând eroarea "Stoc insuficient" chiar cu stoc disponibil. Fix: `(rows as any).rows?.[0] ?? (rows as any)[0]` — dual-path pentru compatibilitate între drivere.
 
 3. **Idempotency la nivel de DB**: Guard-ul verifică `referenceType + referenceId` în `stock_movements` — `dispense()` poate fi apelat de două ori fără a genera dubluri de stoc.
 

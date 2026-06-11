@@ -73,4 +73,7 @@ export class CreateInventoryItemDto {
 
   @IsOptional() @IsString()
   storageConditions?: string;
+
+  @IsOptional() @IsBoolean()
+  isActive?: boolean;
 }

@@ -134,6 +134,7 @@ export class InventoryService {
         ...(dto.vatRate              !== undefined && { vatRate:              dto.vatRate }),
         ...(dto.storageLocation      !== undefined && { storageLocation:      dto.storageLocation }),
         ...(dto.storageConditions    !== undefined && { storageConditions:    dto.storageConditions }),
+        ...(dto.isActive             !== undefined && { isActive:             dto.isActive }),
         updatedAt: new Date(),
       }).where(eq(inventoryItemsTable.id, id)).returning(),
     );

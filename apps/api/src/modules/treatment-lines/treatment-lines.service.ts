@@ -5,9 +5,9 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
-import { eq, and, isNull, count, SQL } from 'drizzle-orm';
-import { DRIZZLE_DB, DrizzleDB }                       from '../../database/database.module';
-import { treatmentLinesTable, consultationsTable }      from '../../database/schema';
+import { eq, and, isNull, count, SQL, sql } from 'drizzle-orm';
+import { DRIZZLE_DB, DrizzleDB }                                          from '../../database/database.module';
+import { treatmentLinesTable, consultationsTable, inventoryItemsTable, stockMovementsTable } from '../../database/schema';
 import { withAuditContext, AuditContext }               from '../../common/helpers/audit.helper';
 import { paginate }                                     from '../../common/types/api-response.types';
 import { CreateTreatmentLineDto }                       from './dto/create-treatment-line.dto';
@@ -158,7 +158,7 @@ export class TreatmentLinesService {
   }
 
   // ---------------------------------------------------------------------------
-  // Dispense — marks as physically given; triggers stock movement in Phase 2
+  // Dispense — marks as physically given; auto-deducts from inventory if linked
   // ---------------------------------------------------------------------------
 
   async dispense(id: string, ctx: AuditContext) {
@@ -170,21 +170,72 @@ export class TreatmentLinesService {
 
     await this.assertConsultationEditable(line.consultationId);
 
-    const [updated] = await withAuditContext(this.db, ctx, (tx) =>
-      tx
+    await withAuditContext(this.db, ctx, async (tx) => {
+      await tx
         .update(treatmentLinesTable)
         .set({
           isDispensed:    true,
           administeredAt: line.administeredAt ?? new Date(),
           updatedAt:      new Date(),
         })
-        .where(eq(treatmentLinesTable.id, id))
-        .returning(),
-    );
+        .where(eq(treatmentLinesTable.id, id));
 
-    // TODO Phase 2: emit StockMovementEvent for inventory deduction
+      // Auto-deduct from inventory when a linked item exists with a positive quantity
+      if (line.inventoryItemId && line.quantityDispensed) {
+        const qty = parseFloat(line.quantityDispensed as string);
+        if (qty > 0) {
+          // Idempotency guard: skip if a movement for this treatment_line already exists
+          const [existing] = await tx
+            .select({ id: stockMovementsTable.id })
+            .from(stockMovementsTable)
+            .where(
+              and(
+                eq(stockMovementsTable.referenceType, 'treatment_line'),
+                eq(stockMovementsTable.referenceId,   id),
+              ),
+            )
+            .limit(1);
+
+          if (!existing) {
+            const rows = await tx.execute(
+              sql`SELECT current_stock FROM inventory_items WHERE id = ${line.inventoryItemId} FOR UPDATE`,
+            );
+            const currentStock = parseFloat((rows as any)[0]?.current_stock ?? '0');
+            const newStock     = currentStock - qty;
+
+            if (newStock < 0) {
+              throw new BadRequestException(
+                `Stoc insuficient pentru ${line.productName ?? 'articol'}. ` +
+                `Disponibil: ${currentStock}, solicitat: ${qty}.`,
+              );
+            }
+
+            await tx.insert(stockMovementsTable).values({
+              inventoryItemId: line.inventoryItemId,
+              movementType:    'consultation_use' as never,
+              referenceType:   'treatment_line',
+              referenceId:     id,
+              quantity:        (-qty).toFixed(3),
+              lotNumber:       line.lotNumber   ?? undefined,
+              expiryDate:      line.expiryDate  ?? undefined,
+              unitCost:        line.unitCost     ?? undefined,
+              notes:           `Dispensat în consultație ${line.consultationId}`,
+              performedBy:     ctx.userId,
+              stockBefore:     currentStock.toFixed(3),
+              stockAfter:      newStock.toFixed(3),
+            });
+
+            await tx.update(inventoryItemsTable).set({
+              currentStock: newStock.toFixed(3),
+              updatedAt:    new Date(),
+            }).where(eq(inventoryItemsTable.id, line.inventoryItemId));
+          }
+        }
+      }
+    });
+
     this.logger.log(`Treatment line ${id} dispensed by user ${ctx.userId}`);
-    return updated;
+    return this.findOneOrFail(id);
   }
 
   // ---------------------------------------------------------------------------

@@ -106,8 +106,9 @@ describe('TreatmentLinesService', () => {
       let call = 0;
       db.limit = jest.fn().mockImplementation(() => {
         call++;
-        if (call === 1) return Promise.resolve([LINE()]);
-        return Promise.resolve([OPEN_CONS]);
+        if (call === 1) return Promise.resolve([LINE()]);       // findOneOrFail (initial read)
+        if (call === 2) return Promise.resolve([OPEN_CONS]);    // assertConsultationEditable
+        return Promise.resolve([dispensed]);                    // findOneOrFail (re-fetch after dispense)
       });
       db.transaction = jest.fn().mockImplementation(async (fn: (tx: ReturnType<typeof makeTx>) => Promise<unknown>) =>
         fn(makeTx([dispensed])),

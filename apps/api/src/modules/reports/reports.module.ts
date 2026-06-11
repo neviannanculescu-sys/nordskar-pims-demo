@@ -7,11 +7,12 @@ import { KpiService }               from './kpi.service';
 import { ReconciliationService }    from './reconciliation.service';
 import { AnomalyService }           from './anomaly.service';
 import { DeadStockService }         from './dead-stock.service';
+import { PricingService }           from './pricing.service';
 
 @Module({
   imports:     [ScheduleModule.forRoot()],
   controllers: [ReportsController],
-  providers:   [ReportsService, AccountingExportService, KpiService, ReconciliationService, AnomalyService, DeadStockService],
-  exports:     [ReportsService, AccountingExportService, KpiService, ReconciliationService, AnomalyService, DeadStockService],
+  providers:   [ReportsService, AccountingExportService, KpiService, ReconciliationService, AnomalyService, DeadStockService, PricingService],
+  exports:     [ReportsService, AccountingExportService, KpiService, ReconciliationService, AnomalyService, DeadStockService, PricingService],
 })
 export class ReportsModule {}

@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { sql } from 'drizzle-orm';
+import { sql, SQL } from 'drizzle-orm';
 import { DRIZZLE_DB, DrizzleDB } from '../../database/database.module';
 
 // ---------------------------------------------------------------------------
@@ -51,11 +51,33 @@ export interface UnbilledDetail extends UnbilledItem {
   }[];
 }
 
+export type RecTaskStatus = 'open' | 'in_progress' | 'done' | 'dismissed';
+
+export interface ReconciliationTask {
+  id:              string;
+  sourceEntityId:  string;
+  sourceType:      UnbilledType;
+  consultationId:  string | null;
+  description:     string;
+  assignedTo:      string | null;
+  note:            string | null;
+  status:          RecTaskStatus;
+  estimatedValue:  number | null;
+  createdAt:       string;
+  updatedAt:       string;
+  createdBy:       string;
+  updatedBy:       string | null;   // last user to change status
+  resolvedAt:      string | null;
+  resolvedBy:      string | null;
+}
+
 export interface ReconciliationSummary {
   asOf:              string;
   totalCases:        number;
   totalValue:        number;
   bySeverity:        { critical: number; warning: number; info: number };
+  /** Critical cases with estimatedValue > 100 RON — primary KPI for dashboard alert threshold. */
+  criticalHighValue: number;
   byType: {
     consultation:   { count: number; value: number };
     procedure:      { count: number; value: number };
@@ -64,6 +86,56 @@ export interface ReconciliationSummary {
   };
   top10: Pick<UnbilledItem, 'id' | 'type' | 'description' | 'estimatedValue' | 'severity' | 'ownerName' | 'petName' | 'consultationDate' | 'veterinarianName'>[];
 }
+
+export interface AcceptanceScenario {
+  type:            UnbilledType;
+  status:          'pass' | 'fail' | 'no_data';
+  taskId:          string | null;
+  sourceEntityId?: string;
+  estimatedValue?: number;
+  severity?:       Severity;
+  steps:           string[];
+  updatedBy?:      string | null;
+  resolvedBy?:     string | null;
+  resolvedAt?:     string | null;
+  updatedAt?:      string | null;
+}
+
+export interface AcceptanceCheckResult {
+  ranAt:     string;
+  passed:    number;
+  noData:    number;
+  failed:    number;
+  scenarios: AcceptanceScenario[];
+  note:      string;
+}
+
+// ---------------------------------------------------------------------------
+// Configuration — thresholds used across service, anomaly hook, cron, and dashboard.
+// Update here to change alert behaviour everywhere simultaneously.
+// ---------------------------------------------------------------------------
+
+export const RECONCILIATION_CONFIG = {
+  // ── KPI de raportare ────────────────────────────────────────────────────────
+  // Folosit în: getSummary() → criticalHighValue, dashboard widget, acceptance check.
+  // Răspunde la întrebarea: "câte cazuri critice au valoare financiară semnificativă?"
+  /** Valoarea minimă (RON) de la care un caz critic intră în KPI-ul criticalHighValue. */
+  kpiHighValueThreshold: 100,        // RON
+
+  // ── Alertă imediată ─────────────────────────────────────────────────────────
+  // Folosit în: cron 20:00 → logger.warn, AnomalyService detector 5 → severity=critical.
+  // Răspunde la întrebarea: "de la câte cazuri KPI declanșăm alertă activă?"
+  /** Numărul minim de cazuri critice (criticalHighValue ≥ alertMinCriticalCount) care declanșează log warn + anomalie critică. */
+  alertMinCriticalCount: 1,
+
+  // ── Severitate item individual ───────────────────────────────────────────────
+  /** Zile fără factură după care un item devine critical. */
+  criticalDaysSince: 7,
+  /** Zile fără factură după care un item devine warning. */
+  warningDaysSince: 3,
+  /** Valoarea minimă (RON) pentru warning (dacă nu e deja critical după vârstă). */
+  warningValueThreshold: 20,         // RON
+} as const;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -76,8 +148,9 @@ function parseInt10(v: string | null | undefined): number {
   return parseInt(v ?? '0', 10) || 0;
 }
 function severity(value: number, daysSince: number): Severity {
-  if (value > 100 || daysSince > 7)  return 'critical';
-  if (value > 20  || daysSince > 3)  return 'warning';
+  const c = RECONCILIATION_CONFIG;
+  if (value > c.kpiHighValueThreshold || daysSince > c.criticalDaysSince)  return 'critical';
+  if (value > c.warningValueThreshold      || daysSince > c.warningDaysSince)   return 'warning';
   return 'info';
 }
 
@@ -151,11 +224,16 @@ export class ReconciliationService {
       .map(({ id, type, description, estimatedValue, severity, ownerName, petName, consultationDate, veterinarianName }) =>
         ({ id, type, description, estimatedValue, severity, ownerName, petName, consultationDate, veterinarianName }));
 
+    const criticalHighValue = items.filter(
+      i => i.severity === 'critical' && i.estimatedValue > RECONCILIATION_CONFIG.kpiHighValueThreshold
+    ).length;
+
     return {
       asOf:       now,
       totalCases: items.length,
       totalValue,
       bySeverity: bySev,
+      criticalHighValue,
       byType,
       top10,
     };
@@ -542,7 +620,232 @@ export class ReconciliationService {
   }
 
   // -------------------------------------------------------------------------
-  // Cron: rulare zilnică la 20:00 — log summary
+  // Task management — human-triggered action items from unbilled cases.
+  // INVARIANT: sistemul NU creează și NU rezolvă automat task-uri.
+  // INVARIANT: închiderea unui task NU marchează sursa ca facturată.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Canonical column list shared by every task SELECT / RETURNING clause.
+   * All methods must project exactly these columns so getTask / listTasks /
+   * getTasksForSourceEntity always return the same ReconciliationTask shape.
+   *
+   * updated_by  — last user to change status (set on every transition)
+   * resolved_by — set only when status becomes 'done' or 'dismissed'
+   * These two fields are independent; on a final transition both are written.
+   */
+  private _taskCols() {
+    return sql`
+      id,
+      source_entity_id  AS "sourceEntityId",
+      source_type       AS "sourceType",
+      consultation_id   AS "consultationId",
+      description,
+      assigned_to       AS "assignedTo",
+      note,
+      status,
+      estimated_value   AS "estimatedValue",
+      created_at::TEXT  AS "createdAt",
+      updated_at::TEXT  AS "updatedAt",
+      created_by        AS "createdBy",
+      updated_by        AS "updatedBy",
+      resolved_at::TEXT AS "resolvedAt",
+      resolved_by       AS "resolvedBy"
+    `;
+  }
+
+  async createTask(params: {
+    sourceEntityId: string;
+    sourceType:     UnbilledType;
+    consultationId: string | null;
+    description:    string;
+    assignedTo?:    string;
+    note?:          string;
+    estimatedValue?: number;
+    createdBy:      string;
+  }): Promise<ReconciliationTask> {
+    const rows = await this.db.execute(sql`
+      INSERT INTO reconciliation_tasks (
+        source_entity_id, source_type, consultation_id,
+        description, assigned_to, note, estimated_value, created_by
+      ) VALUES (
+        ${params.sourceEntityId}, ${params.sourceType}, ${params.consultationId ?? null},
+        ${params.description}, ${params.assignedTo ?? null}, ${params.note ?? null},
+        ${params.estimatedValue ?? null}, ${params.createdBy}
+      )
+      RETURNING ${this._taskCols()}
+    `);
+    return rows.rows[0] as unknown as ReconciliationTask;
+  }
+
+  async getTask(id: string): Promise<ReconciliationTask | null> {
+    const rows = await this.db.execute(sql`
+      SELECT ${this._taskCols()}
+      FROM reconciliation_tasks
+      WHERE id = ${id}
+    `);
+    return (rows.rows[0] as unknown as ReconciliationTask) ?? null;
+  }
+
+  async listTasks(params: {
+    status?:         RecTaskStatus;
+    sourceType?:     UnbilledType;
+    sourceEntityId?: string;
+    limit?:          number;
+    offset?:         number;
+  }): Promise<{ data: ReconciliationTask[]; total: number }> {
+    const limit  = Math.min(params.limit  ?? 50, 200);
+    const offset = params.offset ?? 0;
+
+    const rows = await this.db.execute(sql`
+      SELECT ${this._taskCols()}
+      FROM reconciliation_tasks
+      WHERE 1=1
+        ${params.status         ? sql`AND status            = ${params.status}`         : sql``}
+        ${params.sourceType     ? sql`AND source_type       = ${params.sourceType}`     : sql``}
+        ${params.sourceEntityId ? sql`AND source_entity_id  = ${params.sourceEntityId}` : sql``}
+      ORDER BY created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `);
+
+    const countRows = await this.db.execute(sql`
+      SELECT COUNT(*)::int AS cnt FROM reconciliation_tasks
+      WHERE 1=1
+        ${params.status         ? sql`AND status            = ${params.status}`         : sql``}
+        ${params.sourceType     ? sql`AND source_type       = ${params.sourceType}`     : sql``}
+        ${params.sourceEntityId ? sql`AND source_entity_id  = ${params.sourceEntityId}` : sql``}
+    `);
+
+    return {
+      data:  rows.rows as unknown as ReconciliationTask[],
+      total: (countRows.rows[0] as any).cnt ?? 0,
+    };
+  }
+
+  /**
+   * Transitions task status.
+   * - updated_by + updated_at are set on EVERY transition (check 1).
+   * - resolved_by + resolved_at are set ONLY when status reaches 'done'|'dismissed' (check 2).
+   *   These two pairs are independent columns — updated_by tracks the last editor;
+   *   resolved_by records who closed the item and is never overwritten after closing.
+   */
+  async updateTaskStatus(id: string, status: RecTaskStatus, userId: string): Promise<ReconciliationTask> {
+    // resolved_by / resolved_at — separate from updated_by, set only on final statuses
+    const resolvedFields = (status === 'done' || status === 'dismissed')
+      ? sql`, resolved_at = NOW(), resolved_by = ${userId}`
+      : sql``;
+
+    await this.db.execute(sql`
+      UPDATE reconciliation_tasks
+      SET
+        status     = ${status},
+        updated_at = NOW(),
+        updated_by = ${userId}
+        ${resolvedFields}
+      WHERE id = ${id}
+    `);
+
+    const task = await this.getTask(id);
+    if (!task) throw new Error(`Task ${id} not found`);
+    return task;
+  }
+
+  async getTasksForSourceEntity(sourceEntityId: string): Promise<ReconciliationTask[]> {
+    const rows = await this.db.execute(sql`
+      SELECT ${this._taskCols()}
+      FROM reconciliation_tasks
+      WHERE source_entity_id = ${sourceEntityId}
+      ORDER BY created_at DESC
+    `);
+    return rows.rows as unknown as ReconciliationTask[];
+  }
+
+  // -------------------------------------------------------------------------
+  // Acceptance check — verifică end-to-end cele 4 surse de detecție.
+  // Creează câte un task de test per tip, îl tranzitionează open→in_progress→dismissed,
+  // verifică shape-ul complet și returnează raportul. Task-urile rămân 'dismissed'.
+  // -------------------------------------------------------------------------
+
+  async runAcceptanceCheck(userId: string): Promise<AcceptanceCheckResult> {
+    const from = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+    const to   = new Date().toISOString().slice(0, 10);
+    const ranAt = new Date().toISOString();
+    const scenarios: AcceptanceScenario[] = [];
+
+    for (const type of ['consultation', 'procedure', 'treatment_line', 'stock_movement'] as UnbilledType[]) {
+      const items = await this.getUnbilledItems({ from, to, type });
+      const item  = items[0] ?? null;
+
+      if (!item) {
+        scenarios.push({ type, status: 'no_data', taskId: null, steps: ['no unbilled items found for this source type'] });
+        continue;
+      }
+
+      try {
+        const task = await this.createTask({
+          sourceEntityId: item.sourceEntityId,
+          sourceType:     type,
+          consultationId: item.consultationId,
+          description:    `[ACCEPTANCE TEST] ${item.description}`,
+          estimatedValue: item.estimatedValue,
+          createdBy:      userId,
+        });
+        const steps = ['created → open'];
+
+        await this.updateTaskStatus(task.id, 'in_progress', userId);
+        steps.push('updated → in_progress (updated_by set)');
+
+        await this.updateTaskStatus(task.id, 'dismissed', userId);
+        steps.push('dismissed → resolved_by + resolved_at set, updated_by set');
+
+        const final = await this.getTask(task.id);
+        const shapeOk = (
+          final !== null &&
+          final.status     === 'dismissed'  &&
+          final.updatedBy  === userId        &&
+          final.resolvedBy === userId        &&
+          final.resolvedAt !== null          &&
+          final.updatedAt  !== null
+        );
+        steps.push(shapeOk ? 'shape verified ✓' : 'shape mismatch ✗');
+
+        scenarios.push({
+          type,
+          status:          shapeOk ? 'pass' : 'fail',
+          taskId:          task.id,
+          sourceEntityId:  item.sourceEntityId,
+          estimatedValue:  item.estimatedValue,
+          severity:        item.severity,
+          steps,
+          updatedBy:  final?.updatedBy  ?? null,
+          resolvedBy: final?.resolvedBy ?? null,
+          resolvedAt: final?.resolvedAt ?? null,
+          updatedAt:  final?.updatedAt  ?? null,
+        });
+      } catch (err) {
+        scenarios.push({
+          type,
+          status: 'fail',
+          taskId: null,
+          steps:  [`error: ${(err as Error).message}`],
+        });
+      }
+    }
+
+    return {
+      ranAt,
+      passed:   scenarios.filter(s => s.status === 'pass').length,
+      noData:   scenarios.filter(s => s.status === 'no_data').length,
+      failed:   scenarios.filter(s => s.status === 'fail').length,
+      scenarios,
+      note:     'Task-urile create au status "dismissed" și nu sunt date de producție. Sursa lor rămâne neschimbată.',
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // Cron: rulare zilnică la 20:00 — DOAR refresh semnal + log summary.
+  // NU creează task-uri automat. NU rezolvă task-uri automat.
+  // Acțiunile asupra task-urilor aparțin exclusiv utilizatorului.
   // -------------------------------------------------------------------------
 
   @Cron('0 20 * * *', { name: 'reconciliation-daily', timeZone: 'Europe/Bucharest' })
@@ -554,19 +857,19 @@ export class ReconciliationService {
     try {
       const summary = await this.getSummary(from, today);
       this.logger.log({
-        event:       'reconciliation_complete',
-        date:        today,
-        totalCases:  summary.totalCases,
-        totalValue:  summary.totalValue,
-        critical:    summary.bySeverity.critical,
-        warning:     summary.bySeverity.warning,
+        event:            'reconciliation_complete',
+        date:             today,
+        totalCases:       summary.totalCases,
+        totalValue:       summary.totalValue,
+        critical:         summary.bySeverity.critical,
+        criticalHighValue: summary.criticalHighValue,  // cazuri critice cu valoare > 100 RON
+        warning:          summary.bySeverity.warning,
       });
-      if (summary.bySeverity.critical > 0) {
+      if (summary.criticalHighValue >= RECONCILIATION_CONFIG.alertMinCriticalCount) {
         this.logger.warn({
           event:   'reconciliation_critical_alert',
-          count:   summary.bySeverity.critical,
-          value:   summary.byType.consultation.value + summary.byType.procedure.value,
-          message: `${summary.bySeverity.critical} cazuri critice de nefacturare detectate.`,
+          count:   summary.criticalHighValue,
+          message: `${summary.criticalHighValue} cazuri critice cu valoare > 100 RON detectate. Acțiune manuală necesară.`,
         });
       }
     } catch (err) {

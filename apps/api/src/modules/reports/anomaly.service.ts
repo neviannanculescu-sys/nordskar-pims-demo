@@ -2,8 +2,9 @@ import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { sql } from 'drizzle-orm';
 import { DRIZZLE_DB, DrizzleDB } from '../../database/database.module';
-import { ReconciliationService } from './reconciliation.service';
+import { ReconciliationService, RECONCILIATION_CONFIG } from './reconciliation.service';
 import { DeadStockService }      from './dead-stock.service';
+import { PricingService }        from './pricing.service';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -64,6 +65,7 @@ export class AnomalyService {
     @Inject(DRIZZLE_DB) private readonly db: DrizzleDB,
     private readonly reconciliationService: ReconciliationService,
     private readonly deadStockService:      DeadStockService,
+    private readonly pricingService:        PricingService,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -244,6 +246,7 @@ export class AnomalyService {
       this._detectStockRisk(),
       this._detectDeadStock(),
       this._detectAuditRisk(),
+      this._detectUnderpricedServices(),
     ]);
 
     const all: DetectedAnomaly[] = [];
@@ -493,25 +496,26 @@ export class AnomalyService {
 
     if (summary.totalCases === 0) return result;
 
-    const criticalVal = summary.bySeverity?.critical ?? 0;
-    const totalVal    = summary.totalCases;
-    const totalAmt    = summary.totalValue ?? 0;
+    // criticalHighValue = cazuri critice cu estimatedValue > 100 RON (aceeași definiție ca în getSummary)
+    const criticalHighVal = summary.criticalHighValue ?? 0;
+    const totalVal        = summary.totalCases;
+    const totalAmt        = summary.totalValue ?? 0;
 
     const severity: AnomalySeverity =
-      criticalVal > 0                   ? 'critical' :
-      totalVal    > 5 || totalAmt > 100 ? 'warning'  :
+      criticalHighVal >= RECONCILIATION_CONFIG.alertMinCriticalCount ? 'critical' :
+      totalVal > 5 || totalAmt > 100                                 ? 'warning'  :
       'info';
 
     result.push({
       fingerprint:       `unbilled_services:30d:${today_str}:global`,
       type:              'unbilled_services',
       title:             `${totalVal} servicii nefacturate (${totalAmt.toFixed(2)} RON)`,
-      description:       `Reconcilierea G-15 a identificat ${totalVal} servicii prestate dar nefacturate în ultimele 30 de zile, cu valoare totală estimată ${totalAmt.toFixed(2)} RON. Critical: ${criticalVal}.`,
+      description:       `Reconcilierea G-15 a identificat ${totalVal} servicii prestate dar nefacturate în ultimele 30 de zile, cu valoare totală estimată ${totalAmt.toFixed(2)} RON. Critice (>100 RON): ${criticalHighVal}.`,
       sourceModule:      'financial',
       severity,
       metricValue:       totalAmt,
       baselineValue:     0,
-      threshold:         100,
+      threshold:         RECONCILIATION_CONFIG.kpiHighValueThreshold,
       relatedEntityType: null,
       relatedEntityId:   null,
       suggestedAction:   'Accesează pagina Reconciliere G-15 pentru lista detaliată și acțiunile recomandate per caz.',
@@ -738,6 +742,63 @@ export class AnomalyService {
       suggestedAction:   'Accesează raportul G-13 Stoc Mort pentru lista completă și recomandările per produs (reducere preț, retur furnizor, casare).',
       rangeKey:          '30d',
     });
+
+    return result;
+  }
+
+  // -------------------------------------------------------------------------
+  // Detector 9 — UnderpricedServicesAnomaly (consumă PricingService)
+  // NOTE: detector de semnal — nu modifică automat catalogul de prețuri.
+  //       Acesta este un semnal de revizuire; confirmarea aparține utilizatorului.
+  // -------------------------------------------------------------------------
+
+  private async _detectUnderpricedServices(): Promise<DetectedAnomaly[]> {
+    const signal     = await this.pricingService.getUnderpricedSignalForAnomalyEngine();
+    const today_str  = new Date().toISOString().slice(0, 10);
+    const result: DetectedAnomaly[] = [];
+
+    if (signal.underpricedCount === 0 && signal.noEstimateCount === 0) return result;
+
+    if (signal.criticalCount > 0) {
+      result.push({
+        fingerprint:       `pricing_below_cost:today:${today_str}:global`,
+        type:              'pricing_below_cost',
+        title:             `${signal.criticalCount} servicii vândute sub costul estimat`,
+        description:       `${signal.criticalCount} servicii din catalogul de prețuri au marja teoretică negativă — prețul de vânzare este sub costul direct estimat. Risc de pierdere per prestație.`,
+        sourceModule:      'financial',
+        severity:          'critical',
+        metricValue:       signal.criticalCount,
+        baselineValue:     0,
+        threshold:         0,
+        relatedEntityType: 'price_catalog',
+        relatedEntityId:   null,
+        suggestedAction:   'Accesează G-04 Propuneri Prețuri pentru lista completă. Verifică dacă costul direct estimat este corect înainte de a modifica prețul.',
+        rangeKey:          'today',
+      });
+    }
+
+    if (signal.underpricedCount > 0) {
+      const severity: AnomalySeverity =
+        signal.underpricedCount > 10 || signal.estimatedImpactTotal > 5000 ? 'critical' :
+        signal.underpricedCount >  3 || signal.estimatedImpactTotal > 1000 ? 'warning'  :
+        'info';
+
+      result.push({
+        fingerprint:       `pricing_underpriced:today:${today_str}:global`,
+        type:              'pricing_underpriced',
+        title:             `${signal.underpricedCount} servicii sub marja minimă (impact ${signal.estimatedImpactTotal.toFixed(0)} RON/90z)`,
+        description:       `${signal.underpricedCount} servicii active au marja teoretică sub pragul minim configurat în catalog. Impactul estimat pe ultimele 90 de zile: ${signal.estimatedImpactTotal.toFixed(2)} RON.`,
+        sourceModule:      'financial',
+        severity,
+        metricValue:       signal.underpricedCount,
+        baselineValue:     0,
+        threshold:         0,
+        relatedEntityType: 'price_catalog',
+        relatedEntityId:   null,
+        suggestedAction:   'Accesează G-04 Propuneri Prețuri pentru recomandările detaliate per serviciu. Orice modificare de preț necesită confirmare manuală.',
+        rangeKey:          'today',
+      });
+    }
 
     return result;
   }

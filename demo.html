@@ -160,6 +160,17 @@
     .ds-rec-badge { display:inline-block; padding:1px 7px; border-radius:10px; font-size:10px; font-weight:600; background:#f0fdf4; color:#166534; margin:1px; white-space:nowrap; }
     .ds-drawer { position:fixed; right:0; top:0; bottom:0; width:480px; background:white; box-shadow:-4px 0 20px rgba(0,0,0,.15); z-index:200; display:none; overflow-y:auto; }
     .ds-drawer.open { display:block; }
+
+    /* G-04 Pricing */
+    .pr-card { background:white; border:1px solid #e8d5b7; border-radius:10px; padding:16px 20px; }
+    .pr-ok       { background:#f0fdf4; color:#166534; }
+    .pr-warning  { background:#fffbeb; color:#d97706; }
+    .pr-critical { background:#fef2f2; color:#dc2626; }
+    .pr-info     { background:#eff6ff; color:#3b82f6; }
+    .pr-drawer { position:fixed; right:0; top:0; bottom:0; width:520px; background:white; box-shadow:-4px 0 20px rgba(0,0,0,.15); z-index:200; display:none; overflow-y:auto; }
+    .pr-drawer.open { display:block; }
+    .pr-margin-bar { height:8px; border-radius:4px; background:#e5e7eb; overflow:hidden; }
+    .pr-margin-fill { height:100%; border-radius:4px; transition:width .3s; }
   </style>
 </head>
 <body style="margin:0;">
@@ -296,6 +307,10 @@
           <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
           Stoc Mort G-13
         </a>
+        <a onclick="nav('pricing')" class="sidebar-link" id="nav-pricing">
+          <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+          Prețuri G-04 <span id="nav-pricing-badge" style="display:none;background:#dc2626;color:white;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;">!</span>
+        </a>
       </nav>
 
       <div style="padding:16px;border-top:1px solid #6b4228;display:flex;align-items:center;gap:12px;">
@@ -371,6 +386,26 @@
               <div id="dash-patients" style="font-size:32px;font-weight:700;color:#2d1a0a;">–</div>
               <div style="font-size:12px;color:#6b4a2e;margin-top:4px;">pacienți înregistrați</div>
             </div>
+          </div>
+
+          <!-- G-15 Unbilled alert widget -->
+          <div id="dash-unbilled-widget" style="display:none;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div style="width:40px;height:40px;background:#fed7aa;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg style="width:20px;height:20px;" fill="none" stroke="#ea580c" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+              </div>
+              <div>
+                <div style="font-size:13px;font-weight:700;color:#c2410c;">Servicii nefacturate detectate — G-15</div>
+                <div style="font-size:12px;color:#9a3412;margin-top:2px;">
+                  <span id="dash-unbilled-count" style="font-weight:700;">—</span> cazuri ·
+                  <span id="dash-unbilled-value" style="font-weight:700;">—</span> RON estimat ·
+                  <span id="dash-unbilled-critical" style="color:#dc2626;font-weight:700;">—</span> critice
+                </div>
+              </div>
+            </div>
+            <button onclick="nav('reconciliation')" style="padding:7px 14px;background:#ea580c;color:white;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;">
+              Deschide Reconciliere →
+            </button>
           </div>
 
           <div class="card" style="margin-bottom:20px;">
@@ -723,7 +758,10 @@
               <h2 style="font-size:18px;font-weight:700;color:#2d1a0a;margin:0;">Stocuri</h2>
               <div style="font-size:13px;color:#6b4a2e;margin-top:4px;">Inventar live din baza de date</div>
             </div>
-            <button onclick="loadInventory()" class="btn-secondary" style="font-size:13px;">↺ Actualizează</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button onclick="openAddProductModal()" class="btn-primary" style="font-size:13px;">+ Adaugă produs</button>
+              <button onclick="loadInventory()" class="btn-secondary" style="font-size:13px;">↺ Actualizează</button>
+            </div>
           </div>
 
           <!-- KPI cards -->
@@ -791,8 +829,9 @@
                 <th style="text-align:right;padding:10px 12px;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;background:#fdf8f2;">Cost mediu</th>
                 <th style="text-align:left;padding:10px 12px;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;background:#fdf8f2;">Locație</th>
                 <th style="text-align:center;padding:10px 12px;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;background:#fdf8f2;">Status</th>
+                <th style="text-align:right;padding:10px 12px;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;background:#fdf8f2;">Acțiuni</th>
               </tr></thead>
-              <tbody id="st-items-body"><tr><td colspan="8" style="text-align:center;padding:32px;color:#9ca3af;">Se încarcă...</td></tr></tbody>
+              <tbody id="st-items-body"><tr><td colspan="9" style="text-align:center;padding:32px;color:#9ca3af;">Se încarcă...</td></tr></tbody>
             </table>
           </div>
 
@@ -811,6 +850,132 @@
             <div id="st-movements-body">–</div>
           </div>
         </div><!-- /page-stock -->
+
+        <!-- ==================== INVENTORY OVERLAYS ==================== -->
+
+        <!-- Product Detail Drawer -->
+        <div id="inv-detail-drawer" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(61,38,20,.45);align-items:stretch;justify-content:flex-end;" onclick="if(event.target===this)closeProductDetail()">
+          <div style="width:420px;max-width:100vw;background:#fff;height:100%;overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,.18);display:flex;flex-direction:column;">
+            <div style="padding:20px 24px;border-bottom:1px solid #f3ebe1;display:flex;align-items:flex-start;justify-content:space-between;background:#fdf8f2;position:sticky;top:0;z-index:1;">
+              <div>
+                <div style="font-size:16px;font-weight:700;color:#2d1a0a;" id="inv-detail-name">–</div>
+                <div style="font-size:12px;color:#9ca3af;font-family:monospace;margin-top:2px;" id="inv-detail-sku">–</div>
+                <div style="font-size:14px;font-weight:600;color:#2d1a0a;margin-top:6px;" id="inv-detail-stock">–</div>
+              </div>
+              <button onclick="closeProductDetail()" style="border:none;background:none;cursor:pointer;font-size:24px;color:#9ca3af;padding:0;line-height:1;">×</button>
+            </div>
+            <div style="padding:16px 24px;flex:1;">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#b89275;letter-spacing:.07em;margin-bottom:12px;">Istoricul mișcărilor</div>
+              <div id="inv-detail-movements">–</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add / Edit Product Modal -->
+        <div id="inv-product-modal" style="display:none;position:fixed;inset:0;z-index:1001;background:rgba(61,38,20,.5);align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)closeProductModal()">
+          <div style="background:#fff;border-radius:14px;width:100%;max-width:560px;box-shadow:0 8px 40px rgba(0,0,0,.22);overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
+            <div style="padding:18px 24px;background:#fdf8f2;border-bottom:1px solid #f3ebe1;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+              <div style="font-size:15px;font-weight:700;color:#2d1a0a;" id="inv-product-modal-title">Adaugă Produs Nou</div>
+              <button onclick="closeProductModal()" style="border:none;background:none;cursor:pointer;font-size:22px;color:#9ca3af;line-height:1;">×</button>
+            </div>
+            <div style="padding:20px 24px;display:grid;grid-template-columns:1fr 1fr;gap:14px;overflow-y:auto;">
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#6b4a2e;display:block;margin-bottom:4px;">SKU *</label>
+                <input id="inv-product-modal-sku" type="text" placeholder="ex. MED-001" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0d0c0;border-radius:8px;font-size:13px;">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#6b4a2e;display:block;margin-bottom:4px;">Denumire *</label>
+                <input id="inv-product-modal-name" type="text" placeholder="Denumire produs" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0d0c0;border-radius:8px;font-size:13px;">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#6b4a2e;display:block;margin-bottom:4px;">Denumire generică</label>
+                <input id="inv-product-modal-generic" type="text" placeholder="ex. Amoxicilina" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0d0c0;border-radius:8px;font-size:13px;">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#6b4a2e;display:block;margin-bottom:4px;">Categorie *</label>
+                <select id="inv-product-modal-cat" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0d0c0;border-radius:8px;font-size:13px;background:white;">
+                  <option value="medication">Medicamente</option>
+                  <option value="consumable">Consumabile</option>
+                  <option value="food">Hrană</option>
+                  <option value="product_for_sale">Produse vânzare</option>
+                  <option value="equipment">Echipamente</option>
+                  <option value="other">Altele</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#6b4a2e;display:block;margin-bottom:4px;">Unitate de măsură *</label>
+                <input id="inv-product-modal-unit" type="text" placeholder="ex. buc, ml, kg, flacon" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0d0c0;border-radius:8px;font-size:13px;">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#6b4a2e;display:block;margin-bottom:4px;">Preț vânzare (RON)</label>
+                <input id="inv-product-modal-sale" type="number" step="0.01" min="0" placeholder="0.00" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0d0c0;border-radius:8px;font-size:13px;">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#6b4a2e;display:block;margin-bottom:4px;">Stoc minim alertă</label>
+                <input id="inv-product-modal-min" type="number" step="0.001" min="0" placeholder="0" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0d0c0;border-radius:8px;font-size:13px;">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#6b4a2e;display:block;margin-bottom:4px;">Stoc maxim</label>
+                <input id="inv-product-modal-max" type="number" step="0.001" min="0" placeholder="0" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0d0c0;border-radius:8px;font-size:13px;">
+              </div>
+              <div style="grid-column:1/-1;">
+                <label style="font-size:12px;font-weight:600;color:#6b4a2e;display:block;margin-bottom:4px;">Locație depozitare</label>
+                <input id="inv-product-modal-location" type="text" placeholder="ex. Raft A-3, Frigider 2" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0d0c0;border-radius:8px;font-size:13px;">
+              </div>
+              <div style="grid-column:1/-1;display:flex;align-items:center;gap:8px;">
+                <input id="inv-product-modal-active" type="checkbox" checked style="width:16px;height:16px;accent-color:#e2ab3b;cursor:pointer;">
+                <label for="inv-product-modal-active" style="font-size:13px;color:#2d1a0a;cursor:pointer;">Produs activ (vizibil în catalog)</label>
+              </div>
+            </div>
+            <div style="padding:14px 24px;border-top:1px solid #f3ebe1;display:flex;justify-content:flex-end;gap:10px;flex-shrink:0;">
+              <button onclick="closeProductModal()" class="btn-secondary" style="font-size:13px;">Anulează</button>
+              <button id="inv-product-modal-save" onclick="saveProduct()" class="btn-primary" style="font-size:13px;">Salvează</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stock Movement Modal (IN / OUT) -->
+        <div id="inv-mov-modal" style="display:none;position:fixed;inset:0;z-index:1001;background:rgba(61,38,20,.5);align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)closeMovModal()">
+          <div style="background:#fff;border-radius:14px;width:100%;max-width:480px;box-shadow:0 8px 40px rgba(0,0,0,.22);overflow:hidden;">
+            <div style="padding:18px 24px;background:#fdf8f2;border-bottom:1px solid #f3ebe1;display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="font-size:15px;font-weight:700;color:#2d1a0a;" id="inv-mov-modal-title">Mișcare stoc</div>
+                <div style="font-size:12px;color:#6b7280;margin-top:3px;">Stoc curent: <strong id="inv-mov-modal-cur-stock">–</strong></div>
+              </div>
+              <button onclick="closeMovModal()" style="border:none;background:none;cursor:pointer;font-size:22px;color:#9ca3af;line-height:1;">×</button>
+            </div>
+            <div style="padding:20px 24px;display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+              <div style="grid-column:1/-1;">
+                <label style="font-size:12px;font-weight:600;color:#6b4a2e;display:block;margin-bottom:4px;">Tip mișcare *</label>
+                <select id="inv-mov-modal-type" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0d0c0;border-radius:8px;font-size:13px;background:white;"></select>
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#6b4a2e;display:block;margin-bottom:4px;">Cantitate * (pozitivă)</label>
+                <input id="inv-mov-modal-qty" type="number" step="0.001" min="0.001" placeholder="0.000" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0d0c0;border-radius:8px;font-size:13px;">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#6b4a2e;display:block;margin-bottom:4px;">Cost unitar (RON)</label>
+                <input id="inv-mov-modal-cost" type="number" step="0.01" min="0" placeholder="–" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0d0c0;border-radius:8px;font-size:13px;">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#6b4a2e;display:block;margin-bottom:4px;">Număr lot</label>
+                <input id="inv-mov-modal-lot" type="text" placeholder="ex. LOT-2025-01" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0d0c0;border-radius:8px;font-size:13px;">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#6b4a2e;display:block;margin-bottom:4px;">Data expirare lot</label>
+                <input id="inv-mov-modal-exp" type="date" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0d0c0;border-radius:8px;font-size:13px;">
+              </div>
+              <div style="grid-column:1/-1;">
+                <label style="font-size:12px;font-weight:600;color:#6b4a2e;display:block;margin-bottom:4px;">Notă</label>
+                <input id="inv-mov-modal-notes" type="text" placeholder="Notă opțională" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0d0c0;border-radius:8px;font-size:13px;">
+              </div>
+            </div>
+            <div style="padding:14px 24px;border-top:1px solid #f3ebe1;display:flex;justify-content:flex-end;gap:10px;">
+              <button onclick="closeMovModal()" class="btn-secondary" style="font-size:13px;">Anulează</button>
+              <button id="inv-mov-modal-save" onclick="saveStockMovement()" class="btn-primary" style="font-size:13px;">Înregistrează</button>
+            </div>
+          </div>
+        </div>
 
         <!-- ==================== RAPORT ZILNIC ==================== -->
         <div id="page-daily" class="page">
@@ -1516,6 +1681,121 @@
           <div id="ds-drawer-content" style="padding:20px;"></div>
         </div>
         <div id="ds-drawer-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:199;" onclick="closeDsDrawer()"></div>
+
+        <!-- ================================================================ -->
+        <!-- PAGE: PREȚURI G-04                                               -->
+        <!-- ================================================================ -->
+        <div id="page-pricing" class="page">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+            <div>
+              <h2 style="font-size:20px;font-weight:700;color:#2d1a0a;margin:0;">Propuneri Actualizare Prețuri G-04</h2>
+              <div style="font-size:12px;color:#b89275;margin-top:3px;">Analiza marjei · calculat la <span id="pr-last-run">—</span></div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button onclick="prExportCsv()" class="btn-secondary" style="font-size:13px;padding:6px 12px;">
+                <svg style="width:14px;height:14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Export CSV
+              </button>
+              <button onclick="loadPricing(true)" class="btn-primary" style="font-size:13px;padding:6px 14px;">
+                <svg style="width:14px;height:14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Recalculează
+              </button>
+            </div>
+          </div>
+
+          <!-- Summary cards -->
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px;" id="pr-cards">
+            <div class="pr-card" id="pr-card-total">
+              <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Total servicii</div>
+              <div id="pr-total" style="font-size:26px;font-weight:700;color:#2d1a0a;">—</div>
+              <div style="font-size:11px;color:#b89275;margin-top:2px;">active în catalog</div>
+            </div>
+            <div class="pr-card" id="pr-card-underpriced">
+              <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Sub marjă minimă</div>
+              <div id="pr-underpriced" style="font-size:26px;font-weight:700;color:#dc2626;">—</div>
+              <div style="font-size:11px;color:#b89275;margin-top:2px;">marja teoretică insuficientă</div>
+            </div>
+            <div class="pr-card" id="pr-card-noestimate">
+              <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Fără cost estimat</div>
+              <div id="pr-noestimate" style="font-size:26px;font-weight:700;color:#d97706;">—</div>
+              <div style="font-size:11px;color:#b89275;margin-top:2px;">lipsă direct_cost_estimate</div>
+            </div>
+            <div class="pr-card" id="pr-card-impact">
+              <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Impact estimat 90z</div>
+              <div id="pr-impact" style="font-size:22px;font-weight:700;color:#2d1a0a;">—</div>
+              <div style="font-size:11px;color:#b89275;margin-top:2px;">dacă toate prețurile sunt ajustate</div>
+            </div>
+            <div class="pr-card" id="pr-card-review">
+              <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Necesită revizuire</div>
+              <div id="pr-review" style="font-size:26px;font-weight:700;color:#7c3aed;">—</div>
+              <div style="font-size:11px;color:#b89275;margin-top:2px;">subpreț + fără estimare cu utilizare</div>
+            </div>
+          </div>
+
+          <!-- Info box: types of margins explained -->
+          <div style="background:#fef9f0;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:#92400e;line-height:1.6;">
+            <strong>Tipuri de marjă:</strong>
+            <span style="margin-left:4px;"><strong>Teoretică</strong> = (preț − cost estimat catalog) / preț — bazată pe estimarea manuală din catalog.</span>
+            <span style="margin-left:8px;"><strong>Realizată proceduri</strong> = medie din procedures.cost_direct (90 zile).</span>
+            <span style="margin-left:8px;"><strong>Realizată facturi</strong> = medie din invoice_lines.cost_snapshot (90 zile).</span>
+            <span style="margin-left:8px;font-weight:600;color:#b45309;">Orice modificare de preț necesită confirmare manuală — sistemul nu modifică automat catalogul.</span>
+          </div>
+
+          <!-- Filters -->
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+            <select id="pr-filter-type" onchange="loadPricing()" style="padding:6px 10px;border:1px solid #e8d5b7;border-radius:6px;font-size:13px;background:white;">
+              <option value="">Toate tipurile</option>
+              <option value="consultation">Consultație</option>
+              <option value="procedure">Procedură</option>
+              <option value="vaccination">Vaccinare</option>
+              <option value="surgery">Chirurgie</option>
+              <option value="hospitalization">Hospitalizare</option>
+              <option value="lab">Laborator</option>
+            </select>
+            <select id="pr-filter-flag" onchange="loadPricing()" style="padding:6px 10px;border:1px solid #e8d5b7;border-radius:6px;font-size:13px;background:white;">
+              <option value="">Toate serviciile</option>
+              <option value="underpriced">Doar sub marjă</option>
+              <option value="noestimate">Fără estimare</option>
+            </select>
+            <input id="pr-search" type="text" placeholder="Caută serviciu..." oninput="loadPricing()" style="padding:6px 10px;border:1px solid #e8d5b7;border-radius:6px;font-size:13px;width:200px;" />
+          </div>
+
+          <!-- Table -->
+          <div class="card" style="overflow:hidden;">
+            <div style="overflow-x:auto;">
+              <table style="width:100%;border-collapse:collapse;">
+                <thead>
+                  <tr>
+                    <th>Serviciu</th>
+                    <th>Tip</th>
+                    <th style="text-align:right;">Preț actual</th>
+                    <th style="text-align:right;">Cost estimat</th>
+                    <th style="text-align:right;">Marjă teoretică</th>
+                    <th style="text-align:right;">Marjă realizată</th>
+                    <th style="text-align:right;">Preț recomandat</th>
+                    <th style="text-align:right;">Impact 90z</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="pr-table-body">
+                  <tr><td colspan="10" style="text-align:center;padding:40px;color:#b89275;">Se încarcă...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div id="pr-pagination" style="padding:12px;text-align:center;font-size:12px;color:#b89275;"></div>
+        </div><!-- /page-pricing -->
+
+        <!-- Pricing detail + simulation drawer -->
+        <div id="pr-drawer" class="pr-drawer">
+          <div style="padding:16px 20px;background:#fef9f0;border-bottom:1px solid #e8d5b7;display:flex;align-items:center;justify-content:space-between;">
+            <div style="font-size:14px;font-weight:700;color:#2d1a0a;">Detalii serviciu — Prețuri G-04</div>
+            <button onclick="closePrDrawer()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#6b7280;">✕</button>
+          </div>
+          <div id="pr-drawer-content" style="padding:20px;"></div>
+        </div>
+        <div id="pr-drawer-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:199;" onclick="closePrDrawer()"></div>
 
       </div><!-- /pages -->
     </main>
@@ -2462,6 +2742,7 @@ function nav(page) {
     reconciliation:  ['Reconciliere',      'Servicii prestate vs. facturate — G-15'],
     anomalies:       ['Anomalii G-05',     'Detectare automată anomalii operaționale'],
     deadstock:       ['Stoc Mort G-13',    'Produse fără mișcare — valoare blocată și recomandări'],
+    pricing:         ['Prețuri G-04',      'Propuneri actualizare prețuri — marjă teoretică și realizată'],
   };
   document.getElementById('pageTitle').textContent = titles[page]?.[0] ?? page;
   if (titles[page]?.[1]) {
@@ -2476,6 +2757,7 @@ function nav(page) {
   if (page === 'reconciliation') loadReconciliation();
   if (page === 'anomalies')     loadAnomalies();
   if (page === 'deadstock')    loadDeadStock();
+  if (page === 'pricing')      loadPricing();
 }
 
 async function renderAll() {
@@ -2493,10 +2775,11 @@ async function renderAll() {
 }
 
 async function loadDashboardStats() {
-  const [dashR, outstandingR, unbilledR] = await Promise.all([
+  const [dashR, outstandingR, unbilledR, recSumR] = await Promise.all([
     apiRequest('GET', '/reports/dashboard'),
     apiRequest('GET', '/reports/invoices/outstanding'),
     apiRequest('GET', '/reports/unbilled-services'),
+    apiRequest('GET', `/reports/reconciliation/unbilled/summary?from=${new Date(Date.now()-30*86400000).toISOString().slice(0,10)}&to=${new Date().toISOString().slice(0,10)}`),
   ]);
 
   // ── KPI cards ──
@@ -2526,6 +2809,20 @@ async function loadDashboardStats() {
     _setEl('dash-outstanding-desc', list.length > 0
       ? `Total neîncasat: ${_fmtRON(totalOuts)} RON · Cea mai veche: ${list[0]?.issuedAt || '–'}`
       : 'Toate facturile emise sunt achitate integral.');
+  }
+
+  // ── G-15 Reconciliere widget ──
+  if (recSumR.ok && recSumR.data) {
+    const rs = recSumR.data;
+    const widget = document.getElementById('dash-unbilled-widget');
+    if (rs.totalCases > 0) {
+      _setEl('dash-unbilled-count',    rs.totalCases);
+      _setEl('dash-unbilled-value',    _fmtRON(rs.totalValue));
+      _setEl('dash-unbilled-critical', (rs.criticalHighValue ?? rs.bySeverity?.critical ?? 0) + ' critice >100 RON');
+      if (widget) widget.style.display = 'flex';
+    } else {
+      if (widget) widget.style.display = 'none';
+    }
   }
 
   // ── Nefacturate ──
@@ -4903,7 +5200,7 @@ function filterInventoryTable() {
 function renderInventoryTable(items) {
   const tbody = document.getElementById('st-items-body');
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:#9ca3af;">Niciun produs găsit.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:#9ca3af;">Niciun produs găsit.</td></tr>';
     return;
   }
   tbody.innerHTML = items.map(item => {
@@ -4912,6 +5209,7 @@ function renderInventoryTable(items) {
     const salePrice = item.salePrice     != null ? parseFloat(item.salePrice    ?? item.sale_price)      : null;
     const avgCost   = item.averageCost   != null ? parseFloat(item.averageCost  ?? item.average_cost)    : null;
     const unit      = item.unitOfMeasure ?? item.unit_of_measure ?? '';
+    const id        = item.id;
 
     let statusBadge, stockColor;
     if (stock <= 0) {
@@ -4937,6 +5235,12 @@ function renderInventoryTable(items) {
       <td style="padding:10px 12px;text-align:right;font-size:13px;color:#6b7280;">${avgCost !== null ? _fmtRON(avgCost) + ' RON' : '–'}</td>
       <td style="padding:10px 12px;font-size:12px;color:#6b7280;">${item.storageLocation ?? item.storage_location ?? '–'}</td>
       <td style="padding:10px 12px;text-align:center;">${statusBadge}</td>
+      <td style="padding:8px 10px;text-align:right;white-space:nowrap;">
+        <button onclick="openStockInModal('${id}')" title="Intrare stoc" style="border:none;background:#f0fdf4;color:#16a34a;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer;margin-right:3px;">IN</button>
+        <button onclick="openStockOutModal('${id}')" title="Ieșire stoc" style="border:none;background:#fef2f2;color:#dc2626;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer;margin-right:3px;">OUT</button>
+        <button onclick="openEditProductModal('${id}')" title="Editează produs" style="border:none;background:#f0f9ff;color:#0369a1;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer;margin-right:3px;">Edit</button>
+        <button onclick="openProductDetail('${id}')" title="Detalii și istoric" style="border:none;background:#fdf8f2;color:#6b4a2e;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer;">↗</button>
+      </td>
     </tr>`;
   }).join('');
 }
@@ -5001,6 +5305,199 @@ function renderMovements(movements) {
       </tr>`;
     }).join('')}</tbody>
   </table>`;
+}
+
+// ==================== STOCURI — MODALE ====================
+
+let _currentStockItem = null;
+
+function openAddProductModal() {
+  _currentStockItem = null;
+  ['inv-product-modal-sku','inv-product-modal-name','inv-product-modal-generic',
+   'inv-product-modal-unit','inv-product-modal-sale','inv-product-modal-min',
+   'inv-product-modal-max','inv-product-modal-location'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  const catEl = document.getElementById('inv-product-modal-cat');
+  if (catEl) catEl.value = 'medication';
+  const activeEl = document.getElementById('inv-product-modal-active');
+  if (activeEl) activeEl.checked = true;
+  document.getElementById('inv-product-modal-sku').disabled = false;
+  document.getElementById('inv-product-modal-title').textContent = 'Adaugă Produs Nou';
+  document.getElementById('inv-product-modal').style.display = 'flex';
+}
+
+function openEditProductModal(itemId) {
+  const item = _inventoryItems.find(i => i.id === itemId);
+  if (!item) return;
+  _currentStockItem = item;
+  const f = (id, val) => { const el = document.getElementById(id); if (el) el.value = val ?? ''; };
+  f('inv-product-modal-sku',      item.sku);
+  f('inv-product-modal-name',     item.name);
+  f('inv-product-modal-generic',  item.genericName ?? item.generic_name ?? '');
+  f('inv-product-modal-cat',      item.category ?? 'medication');
+  f('inv-product-modal-unit',     item.unitOfMeasure ?? item.unit_of_measure ?? '');
+  f('inv-product-modal-sale',     item.salePrice ?? item.sale_price ?? '');
+  f('inv-product-modal-min',      item.minStockLevel ?? item.min_stock_level ?? '');
+  f('inv-product-modal-max',      item.maxStockLevel ?? item.max_stock_level ?? '');
+  f('inv-product-modal-location', item.storageLocation ?? item.storage_location ?? '');
+  const activeEl = document.getElementById('inv-product-modal-active');
+  if (activeEl) activeEl.checked = item.isActive !== false;
+  document.getElementById('inv-product-modal-sku').disabled = true;
+  document.getElementById('inv-product-modal-title').textContent = 'Editează Produs';
+  document.getElementById('inv-product-modal').style.display = 'flex';
+}
+
+function closeProductModal() {
+  document.getElementById('inv-product-modal').style.display = 'none';
+  _currentStockItem = null;
+}
+
+async function saveProduct() {
+  const isEdit = !!_currentStockItem;
+  const g = id => document.getElementById(id)?.value?.trim() ?? '';
+  const sku = g('inv-product-modal-sku');
+  const name = g('inv-product-modal-name');
+  const category = g('inv-product-modal-cat');
+  const unit = g('inv-product-modal-unit');
+  if (!name || (!isEdit && !sku) || !category || !unit) {
+    alert('Completează câmpurile obligatorii: SKU (dacă e produs nou), Denumire, Categorie, UM.');
+    return;
+  }
+  const payload = {
+    name, category,
+    unitOfMeasure: unit,
+    ...(g('inv-product-modal-generic')  && { genericName:      g('inv-product-modal-generic') }),
+    ...(g('inv-product-modal-sale')     && { salePrice:         g('inv-product-modal-sale') }),
+    ...(g('inv-product-modal-min')      && { minStockLevel:     g('inv-product-modal-min') }),
+    ...(g('inv-product-modal-max')      && { maxStockLevel:     g('inv-product-modal-max') }),
+    ...(g('inv-product-modal-location') && { storageLocation:   g('inv-product-modal-location') }),
+    isActive: document.getElementById('inv-product-modal-active')?.checked ?? true,
+    ...(!isEdit && { sku }),
+  };
+  const btn = document.getElementById('inv-product-modal-save');
+  btn.disabled = true; btn.textContent = 'Se salvează...';
+  const r = isEdit
+    ? await apiRequest('PATCH', `/inventory/items/${_currentStockItem.id}`, payload)
+    : await apiRequest('POST',  '/inventory/items', payload);
+  btn.disabled = false; btn.textContent = 'Salvează';
+  if (!r.ok) { alert('Eroare: ' + (r.data?.message ?? r.status)); return; }
+  closeProductModal();
+  loadInventory();
+}
+
+function openStockInModal(itemId) {
+  const item = _inventoryItems.find(i => i.id === itemId);
+  if (!item) return;
+  _currentStockItem = item;
+  document.getElementById('inv-mov-modal-title').textContent = 'Intrare stoc — ' + item.name;
+  document.getElementById('inv-mov-modal-cur-stock').textContent =
+    parseFloat(item.currentStock ?? item.current_stock ?? 0) + ' ' + (item.unitOfMeasure ?? item.unit_of_measure ?? '');
+  ['inv-mov-modal-qty','inv-mov-modal-cost','inv-mov-modal-lot','inv-mov-modal-exp','inv-mov-modal-notes']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('inv-mov-modal-type').innerHTML = `
+    <option value="purchase_receipt">Recepție de la furnizor</option>
+    <option value="adjustment_positive">Ajustare pozitivă (inventar)</option>`;
+  document.getElementById('inv-mov-modal').style.display = 'flex';
+}
+
+function openStockOutModal(itemId) {
+  const item = _inventoryItems.find(i => i.id === itemId);
+  if (!item) return;
+  _currentStockItem = item;
+  document.getElementById('inv-mov-modal-title').textContent = 'Ieșire stoc — ' + item.name;
+  document.getElementById('inv-mov-modal-cur-stock').textContent =
+    parseFloat(item.currentStock ?? item.current_stock ?? 0) + ' ' + (item.unitOfMeasure ?? item.unit_of_measure ?? '');
+  ['inv-mov-modal-qty','inv-mov-modal-cost','inv-mov-modal-lot','inv-mov-modal-exp','inv-mov-modal-notes']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('inv-mov-modal-type').innerHTML = `
+    <option value="direct_sale">Vânzare directă</option>
+    <option value="adjustment_negative">Ajustare negativă (inventar)</option>
+    <option value="expired_disposal">Casare produs expirat</option>
+    <option value="theft_loss">Pierdere / furt</option>
+    <option value="return_to_supplier">Retur furnizor</option>`;
+  document.getElementById('inv-mov-modal').style.display = 'flex';
+}
+
+function closeMovModal() {
+  document.getElementById('inv-mov-modal').style.display = 'none';
+  _currentStockItem = null;
+}
+
+async function saveStockMovement() {
+  if (!_currentStockItem) return;
+  const qty  = parseFloat(document.getElementById('inv-mov-modal-qty')?.value ?? '');
+  const type = document.getElementById('inv-mov-modal-type')?.value;
+  if (!qty || qty <= 0 || isNaN(qty)) { alert('Introdu o cantitate pozitivă.'); return; }
+  const OUT_TYPES = ['direct_sale','adjustment_negative','expired_disposal','theft_loss','return_to_supplier','consultation_use','hospitalization_use'];
+  const signedQty = OUT_TYPES.includes(type) ? -qty : qty;
+  const notes = document.getElementById('inv-mov-modal-notes')?.value?.trim();
+  const lot   = document.getElementById('inv-mov-modal-lot')?.value?.trim();
+  const exp   = document.getElementById('inv-mov-modal-exp')?.value;
+  const cost  = document.getElementById('inv-mov-modal-cost')?.value;
+  const payload = {
+    inventoryItemId: _currentStockItem.id,
+    movementType:    type,
+    quantity:        signedQty.toFixed(3),
+    ...(notes && { notes }),
+    ...(lot   && { lotNumber: lot }),
+    ...(exp   && { expiryDate: exp }),
+    ...(cost  && { unitCost: parseFloat(cost).toFixed(2) }),
+  };
+  const btn = document.getElementById('inv-mov-modal-save');
+  btn.disabled = true; btn.textContent = 'Se salvează...';
+  const r = await apiRequest('POST', '/inventory/movements', payload);
+  btn.disabled = false; btn.textContent = 'Înregistrează';
+  if (!r.ok) { alert('Eroare: ' + (r.data?.message ?? r.status)); return; }
+  closeMovModal();
+  loadInventory();
+}
+
+async function openProductDetail(itemId) {
+  const item = _inventoryItems.find(i => i.id === itemId);
+  if (!item) return;
+  _currentStockItem = item;
+  document.getElementById('inv-detail-name').textContent  = item.name;
+  document.getElementById('inv-detail-sku').textContent   = item.sku;
+  document.getElementById('inv-detail-stock').textContent =
+    parseFloat(item.currentStock ?? item.current_stock ?? 0) + ' ' + (item.unitOfMeasure ?? item.unit_of_measure ?? '');
+  document.getElementById('inv-detail-movements').innerHTML =
+    '<div style="color:#9ca3af;padding:16px;text-align:center;">Se încarcă...</div>';
+  document.getElementById('inv-detail-drawer').style.display = 'flex';
+
+  const r = await apiRequest('GET', `/inventory/items/${itemId}/movements?limit=50`);
+  if (r.ok) {
+    const movements = Array.isArray(r.data) ? r.data : (r.data?.data ?? []);
+    if (!movements.length) {
+      document.getElementById('inv-detail-movements').innerHTML =
+        '<div style="color:#9ca3af;padding:16px;text-align:center;">Nicio mișcare înregistrată.</div>';
+    } else {
+      document.getElementById('inv-detail-movements').innerHTML = movements.map(m => {
+        const qty = parseFloat(m.quantity ?? 0);
+        const qtyColor = qty > 0 ? '#16a34a' : '#dc2626';
+        const qtySign  = qty > 0 ? '+' : '';
+        const dt = m.performedAt
+          ? new Date(m.performedAt).toLocaleString('ro-RO', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})
+          : '–';
+        return `<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:10px 0;border-bottom:1px solid #f3ebe1;gap:12px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:500;color:#2d1a0a;">${MOV_TYPE_LABELS[m.movementType] ?? m.movementType}</div>
+            <div style="font-size:11px;color:#9ca3af;margin-top:1px;">${dt}${m.lotNumber ? ' · Lot: ' + m.lotNumber : ''}</div>
+            ${m.notes ? `<div style="font-size:11px;color:#6b7280;margin-top:2px;">${m.notes}</div>` : ''}
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            <div style="font-weight:700;color:${qtyColor};">${qtySign}${qty}</div>
+            <div style="font-size:11px;color:#9ca3af;">→ ${m.stockAfter ?? '–'}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+}
+
+function closeProductDetail() {
+  document.getElementById('inv-detail-drawer').style.display = 'none';
+  _currentStockItem = null;
 }
 
 // ==================== RAPORT ZILNIC ====================
@@ -5610,12 +6107,51 @@ async function openRecDetail(consultationId, item) {
         </div>`;
       }
 
-      html += `<div style="background:#fffbf5;border:1px solid #e8d5b7;border-radius:8px;padding:10px;font-size:12px;color:#6b4228;">
+      html += `<div style="background:#fffbf5;border:1px solid #e8d5b7;border-radius:8px;padding:10px;font-size:12px;color:#6b4228;margin-bottom:12px;">
         <strong>Ce trebuie verificat manual:</strong><br>
         • Verificați dacă există o factură emisă separat care acoperă aceste servicii<br>
         • Dacă serviciile nu au fost facturate, deschideți modulul Facturi și creați o nouă factură<br>
         • Sistemul NU modifică automat nicio factură — acțiunea aparține utilizatorului
       </div>`;
+
+      // Load existing tasks for this entity
+      const tasksR = await apiRequest('GET', `/reports/reconciliation/tasks/for-entity/${item.id}`);
+      const tasks  = tasksR.ok ? (tasksR.data ?? []) : [];
+      const taskStatusLabel = { open: 'Deschis', in_progress: 'În lucru', done: 'Rezolvat', dismissed: 'Ignorat' };
+      const taskStatusColor = { open: '#d97706', in_progress: '#2563eb', done: '#16a34a', dismissed: '#9ca3af' };
+
+      if (tasks.length) {
+        html += `<div style="margin-bottom:12px;">
+          <div style="font-size:12px;font-weight:700;color:#2d1a0a;margin-bottom:6px;">📋 Task-uri create (${tasks.length})</div>
+          ${tasks.map(t => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:#f9f5ee;border-radius:6px;margin-bottom:4px;">
+              <div>
+                <span style="font-size:12px;color:#2d1a0a;">${t.description}</span>
+                ${t.note ? `<span style="font-size:11px;color:#b89275;margin-left:6px;">${t.note}</span>` : ''}
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:11px;font-weight:600;color:${taskStatusColor[t.status] ?? '#6b7280'};">${taskStatusLabel[t.status] ?? t.status}</span>
+                ${t.status !== 'done' && t.status !== 'dismissed' ? `
+                  <button onclick="recTaskUpdateStatus('${t.id}','done')" style="padding:2px 7px;font-size:10px;background:#d1fae5;color:#166534;border:none;border-radius:4px;cursor:pointer;">Rezolvat</button>
+                  <button onclick="recTaskUpdateStatus('${t.id}','dismissed')" style="padding:2px 7px;font-size:10px;background:#f3f4f6;color:#6b7280;border:none;border-radius:4px;cursor:pointer;">Ignoră</button>
+                ` : ''}
+              </div>
+            </div>`).join('')}
+        </div>`;
+      }
+
+      // Task creation form
+      html += `
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;margin-bottom:4px;">
+          <div style="font-size:12px;font-weight:700;color:#166534;margin-bottom:8px;">+ Creează task de urmărire</div>
+          <textarea id="rec-task-note" rows="2" placeholder="Descriere task (ex: Emite factură pentru consultația din 10 iunie)..."
+            style="width:100%;padding:7px 10px;border:1px solid #bbf7d0;border-radius:6px;font-size:12px;resize:vertical;box-sizing:border-box;margin-bottom:6px;"></textarea>
+          <button onclick="recCreateTask('${item.id}','${item.type}','${item.consultationId ?? ''}',${item.estimatedValue})"
+            style="padding:6px 14px;background:#16a34a;color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">
+            Creează task
+          </button>
+          <span id="rec-task-status-msg" style="font-size:11px;margin-left:8px;color:#16a34a;"></span>
+        </div>`;
 
       document.getElementById('rec-detail-dynamic').innerHTML = html;
     } else {
@@ -6130,6 +6666,390 @@ function closeDsDrawer() {
   document.getElementById('ds-drawer').classList.remove('open');
   document.getElementById('ds-drawer-overlay').style.display = 'none';
   document.body.style.overflow = '';
+}
+
+// ============================================================
+// G-04 PREȚURI — loadPricing, renderPrTable, openPrDrawer
+// ============================================================
+
+let _prData = [];
+let _prTotal = 0;
+
+async function loadPricing(forceRefresh) {
+  const serviceType   = document.getElementById('pr-filter-type')?.value  || '';
+  const flagFilter    = document.getElementById('pr-filter-flag')?.value   || '';
+  const searchVal     = (document.getElementById('pr-search')?.value || '').toLowerCase();
+
+  // Load summary once (or on forceRefresh)
+  if (!_prData.length || forceRefresh) {
+    await _loadPricingSummary();
+  }
+
+  // Build query
+  const params = new URLSearchParams({ limit: '200' });
+  if (serviceType)            params.set('serviceType', serviceType);
+  if (flagFilter === 'underpriced') params.set('onlyUnderpriced', 'true');
+  if (flagFilter === 'noestimate')  params.set('onlyNoEstimate',  'true');
+
+  try {
+    const res  = await _apiCall(`/reports/pricing/underpriced?${params}`);
+    const data = res.data ?? [];
+    _prTotal   = res.total ?? data.length;
+
+    _prData = searchVal
+      ? data.filter(s => s.name.toLowerCase().includes(searchVal) || s.code.toLowerCase().includes(searchVal))
+      : data;
+
+    _renderPrTable(_prData);
+    document.getElementById('pr-last-run').textContent = new Date().toLocaleTimeString('ro-RO');
+  } catch (e) {
+    document.getElementById('pr-table-body').innerHTML =
+      `<tr><td colspan="10" style="text-align:center;padding:32px;color:#dc2626;">${e.message}</td></tr>`;
+  }
+}
+
+async function _loadPricingSummary() {
+  try {
+    const s = await _apiCall('/reports/pricing/summary');
+    _setEl('pr-total',       s.totalServices ?? '—');
+    _setEl('pr-underpriced', s.underpricedCount ?? '—');
+    _setEl('pr-noestimate',  s.noEstimateCount  ?? '—');
+    _setEl('pr-impact',      s.estimatedImpactTotal != null ? _fmtRON(s.estimatedImpactTotal) : '—');
+    _setEl('pr-review',      s.needsReviewCount ?? '—');
+
+    // Badge in nav
+    const badge = document.getElementById('nav-pricing-badge');
+    if (badge) {
+      if ((s.underpricedCount ?? 0) > 0) {
+        badge.style.display = 'inline';
+        badge.textContent = s.underpricedCount;
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+  } catch (_) {}
+}
+
+function _renderPrTable(data) {
+  const tbody = document.getElementById('pr-table-body');
+  if (!data.length) {
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:40px;color:#b89275;">Nu există servicii cu criteriile selectate.</td></tr>`;
+    document.getElementById('pr-pagination').textContent = '';
+    return;
+  }
+
+  const rows = data.map(s => {
+    const m          = s.margins;
+    const theoMargin = m.theoreticalMargin;
+    const realMargin = m.realizedMarginProc ?? m.realizedMarginInv;
+
+    // Margin bar: green if ok, orange if below, red if negative
+    const marginColor = theoMargin == null  ? '#e5e7eb' :
+                        theoMargin < 0      ? '#dc2626' :
+                        theoMargin < s.minMarginPercent ? '#f59e0b' : '#22c55e';
+    const marginPct   = theoMargin != null  ? Math.max(0, Math.min(100, theoMargin)) : 0;
+
+    const statusBadge = s.isUnderpriced
+      ? `<span class="badge pr-warning">Sub marjă</span>`
+      : s.hasNoEstimate
+        ? `<span class="badge pr-info">Fără estimare</span>`
+        : `<span class="badge pr-ok">OK</span>`;
+
+    const recommendedCell = m.recommendedPrice != null && s.isUnderpriced
+      ? `<span style="font-weight:600;color:#dc2626;">${_fmtRON(m.recommendedPrice)}</span>
+         <span style="font-size:10px;color:#b89275;display:block;">+${_fmtRON(m.priceDelta)}</span>`
+      : `<span style="color:#b89275;">—</span>`;
+
+    const impactCell = s.estimatedImpact != null && s.estimatedImpact > 0
+      ? `<span style="font-weight:600;color:#7c3aed;">${_fmtRON(s.estimatedImpact)}</span>`
+      : `<span style="color:#b89275;">—</span>`;
+
+    return `<tr class="table-row" style="cursor:pointer;" onclick="openPrDrawer('${s.serviceId}')">
+      <td>
+        <div style="font-weight:600;font-size:13px;">${s.name}</div>
+        <div style="font-size:11px;color:#b89275;">${s.code} · ${s.categoryName}</div>
+      </td>
+      <td><span style="font-size:12px;color:#6b4a2e;">${_prTypeLabel(s.serviceType)}</span></td>
+      <td style="text-align:right;font-weight:600;">${_fmtRON(s.basePrice)}</td>
+      <td style="text-align:right;">
+        ${m.directCostEstimate != null
+          ? `<span style="font-size:13px;">${_fmtRON(m.directCostEstimate)}</span>`
+          : `<span style="color:#d97706;font-size:12px;">lipsă</span>`}
+      </td>
+      <td style="text-align:right;">
+        ${theoMargin != null ? `
+          <div style="font-weight:600;color:${marginColor};font-size:13px;">${theoMargin.toFixed(1)}%</div>
+          <div class="pr-margin-bar" style="width:80px;margin-left:auto;margin-top:3px;">
+            <div class="pr-margin-fill" style="width:${marginPct}%;background:${marginColor};"></div>
+          </div>
+          <div style="font-size:10px;color:#b89275;margin-top:1px;">min ${s.minMarginPercent}%</div>
+        ` : `<span style="color:#b89275;font-size:12px;">—</span>`}
+      </td>
+      <td style="text-align:right;">
+        ${realMargin != null
+          ? `<span style="font-size:13px;color:${realMargin < s.minMarginPercent ? '#d97706' : '#16a34a'};">${realMargin.toFixed(1)}%</span>`
+          : `<span style="color:#b89275;font-size:12px;">fără date</span>`}
+      </td>
+      <td style="text-align:right;">${recommendedCell}</td>
+      <td style="text-align:right;">${impactCell}</td>
+      <td>${statusBadge}</td>
+      <td><button onclick="event.stopPropagation();openPrDrawer('${s.serviceId}')" style="background:none;border:none;cursor:pointer;color:#b89275;font-size:12px;">▶</button></td>
+    </tr>`;
+  }).join('');
+
+  tbody.innerHTML = rows;
+  document.getElementById('pr-pagination').textContent =
+    `${data.length} servicii afișate din ${_prTotal} total`;
+}
+
+function _prTypeLabel(t) {
+  const map = {
+    consultation:   'Consultație',
+    procedure:      'Procedură',
+    vaccination:    'Vaccinare',
+    surgery:        'Chirurgie',
+    hospitalization:'Hospitalizare',
+    lab:            'Laborator',
+  };
+  return map[t] ?? t;
+}
+
+async function openPrDrawer(serviceId) {
+  document.getElementById('pr-drawer').classList.add('open');
+  document.getElementById('pr-drawer-overlay').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+  const content = document.getElementById('pr-drawer-content');
+  content.innerHTML = `<div style="text-align:center;padding:40px;color:#b89275;">Se încarcă...</div>`;
+
+  try {
+    const detail = await _apiCall(`/reports/pricing/${serviceId}`);
+    const s = detail.service;
+    const m = s.margins;
+
+    const theoMargin = m.theoreticalMargin;
+    const realMargP  = m.realizedMarginProc;
+    const realMargI  = m.realizedMarginInv;
+
+    const marginColor = theoMargin == null  ? '#6b7280' :
+                        theoMargin < 0      ? '#dc2626' :
+                        theoMargin < s.minMarginPercent ? '#d97706' : '#16a34a';
+
+    // Price history sparkline (text-based)
+    const phRows = (detail.priceHistory ?? []).map(p =>
+      `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f3e8d8;font-size:12px;">
+        <span style="color:#6b4a2e;">${p.period}</span>
+        <span>${_fmtRON(p.avgPrice)} <span style="color:#b89275;">(${p.count} fact.)</span></span>
+      </div>`
+    ).join('') || '<div style="color:#b89275;font-size:12px;">Nu există date</div>';
+
+    const confidenceColor = { high: '#16a34a', medium: '#d97706', low: '#9ca3af' };
+    const confidenceLabel = { high: 'Înaltă', medium: 'Medie', low: 'Scăzută' };
+    const topConsumables = (detail.topConsumables ?? []).map(c => {
+      const pct  = Math.round((c.coOccurrenceRate ?? 0) * 100);
+      const conf = c.confidence ?? 'low';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f3e8d8;font-size:12px;"
+                   title="Tip legătură: ${c.evidenceType ?? 'empirical_usage'} / ${c.linkType ?? 'co_occurrence'}&#10;${c.phase2Note ?? ''}">
+        <div>
+          <span style="color:#2d1a0a;">${c.itemName}</span>
+          <span style="font-size:10px;color:#b89275;margin-left:4px;">${c.consultationCount} consultații · ${pct}% co-ocurență</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:10px;font-weight:600;color:${confidenceColor[conf]};" title="Confidență: ${confidenceLabel[conf]}">${confidenceLabel[conf]}</span>
+          <span style="color:#6b4a2e;">${_fmtRON(c.avgCostPerUse)} / util.</span>
+        </div>
+      </div>`;
+    }).join('') || '<div style="color:#b89275;font-size:12px;">Nu există date (minim 2 consultații necesare)</div>';
+
+    content.innerHTML = `
+      <!-- Header -->
+      <div style="margin-bottom:16px;">
+        <div style="font-size:16px;font-weight:700;color:#2d1a0a;">${s.name}</div>
+        <div style="font-size:12px;color:#b89275;margin-top:2px;">${s.code} · ${_prTypeLabel(s.serviceType)} · ${s.categoryName}</div>
+      </div>
+
+      <!-- Price & margins grid -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <div style="background:#fdf8f2;border-radius:8px;padding:12px;">
+          <div style="font-size:10px;font-weight:700;color:#b89275;text-transform:uppercase;margin-bottom:4px;">Preț actual (fără TVA)</div>
+          <div style="font-size:20px;font-weight:700;color:#2d1a0a;">${_fmtRON(s.basePrice)}</div>
+          <div style="font-size:11px;color:#b89275;">cu TVA: ${s.priceWithVat != null ? _fmtRON(s.priceWithVat) : '—'} (${s.vatRate}%)</div>
+        </div>
+        <div style="background:#fdf8f2;border-radius:8px;padding:12px;">
+          <div style="font-size:10px;font-weight:700;color:#b89275;text-transform:uppercase;margin-bottom:4px;">Cost direct estimat</div>
+          <div style="font-size:20px;font-weight:700;color:#2d1a0a;">${m.directCostEstimate != null ? _fmtRON(m.directCostEstimate) : '—'}</div>
+          <div style="font-size:11px;color:#b89275;">marjă min. configurată: ${s.minMarginPercent}%</div>
+        </div>
+        <div style="background:${theoMargin != null && theoMargin < s.minMarginPercent ? '#fff7ed' : '#f0fdf4'};border-radius:8px;padding:12px;border:1px solid ${theoMargin != null && theoMargin < s.minMarginPercent ? '#fde68a' : '#bbf7d0'};"
+             title="Marjă teoretică&#10;Sursă: price_catalog.direct_cost_estimate&#10;Formulă: (base_price − direct_cost_estimate) / base_price × 100&#10;Fiabilitate: SCĂZUTĂ — exactă doar dacă estimarea a fost revizuită recent">
+          <div style="font-size:10px;font-weight:700;color:#b89275;text-transform:uppercase;margin-bottom:4px;cursor:help;">Marjă teoretică ⓘ</div>
+          <div style="font-size:20px;font-weight:700;color:${marginColor};">${theoMargin != null ? theoMargin.toFixed(1) + '%' : '—'}</div>
+          <div style="font-size:11px;color:#b89275;">price_catalog.direct_cost_estimate</div>
+        </div>
+        <div style="background:#f0f9ff;border-radius:8px;padding:12px;border:1px solid #bae6fd;"
+             title="Marjă realizată — proceduri&#10;Sursă: procedures.cost_direct&#10;Formulă: (unit_price − cost_direct/qty) / unit_price × 100 · medie 90 zile&#10;Fiabilitate: MEDIE — reflectă costul real al consumabilelor la prestare">
+          <div style="font-size:10px;font-weight:700;color:#b89275;text-transform:uppercase;margin-bottom:4px;cursor:help;">Marjă realizată — proceduri ⓘ</div>
+          <div style="font-size:20px;font-weight:700;color:${realMargP != null && realMargP < s.minMarginPercent ? '#d97706' : '#0369a1'};">${realMargP != null ? realMargP.toFixed(1) + '%' : '—'}</div>
+          <div style="font-size:11px;color:#b89275;">procedures.cost_direct · ${m.realizedProcCount} înregistrări · 90z</div>
+        </div>
+        <div style="background:#fdf4ff;border-radius:8px;padding:12px;border:1px solid #e9d5ff;"
+             title="Marjă realizată — facturi&#10;Sursă: invoice_lines.cost_snapshot&#10;Formulă: (unit_price − cost_snapshot/qty) / unit_price × 100 · medie 90 zile&#10;Fiabilitate: MEDIE — costul de achiziție capturat la momentul facturării">
+          <div style="font-size:10px;font-weight:700;color:#b89275;text-transform:uppercase;margin-bottom:4px;cursor:help;">Marjă realizată — facturi ⓘ</div>
+          <div style="font-size:20px;font-weight:700;color:#7c3aed;">${realMargI != null ? realMargI.toFixed(1) + '%' : '—'}</div>
+          <div style="font-size:11px;color:#b89275;">invoice_lines.cost_snapshot · ${m.realizedInvCount} linii · 90z</div>
+        </div>
+        <div style="background:${s.isUnderpriced ? '#fff1f2' : '#f0fdf4'};border-radius:8px;padding:12px;border:1px solid ${s.isUnderpriced ? '#fecdd3' : '#bbf7d0'};">
+          <div style="font-size:10px;font-weight:700;color:#b89275;text-transform:uppercase;margin-bottom:4px;">Preț recomandat</div>
+          <div style="font-size:20px;font-weight:700;color:${s.isUnderpriced ? '#dc2626' : '#16a34a'};">${m.recommendedPrice != null ? _fmtRON(m.recommendedPrice) : '—'}</div>
+          <div style="font-size:11px;color:#b89275;">la marjă minimă de ${s.minMarginPercent}%${m.priceDelta != null ? ' · delta: ' + _fmtRON(m.priceDelta) : ''}</div>
+        </div>
+      </div>
+
+      <!-- Utilizare 90 zile -->
+      <div style="background:#fdf8f2;border-radius:8px;padding:12px;margin-bottom:16px;display:flex;gap:20px;">
+        <div><div style="font-size:10px;color:#b89275;font-weight:700;text-transform:uppercase;margin-bottom:2px;">Facturi 90z</div><div style="font-size:16px;font-weight:700;">${s.invoiceCount90d}</div></div>
+        <div><div style="font-size:10px;color:#b89275;font-weight:700;text-transform:uppercase;margin-bottom:2px;">Venit 90z</div><div style="font-size:16px;font-weight:700;">${_fmtRON(s.revenue90d)}</div></div>
+        ${s.estimatedImpact != null && s.estimatedImpact > 0 ? `<div><div style="font-size:10px;color:#b89275;font-weight:700;text-transform:uppercase;margin-bottom:2px;">Impact la ajustare</div><div style="font-size:16px;font-weight:700;color:#7c3aed;">${_fmtRON(s.estimatedImpact)}</div></div>` : ''}
+      </div>
+
+      <!-- Simulator pret -->
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px;margin-bottom:16px;">
+        <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:10px;">
+          Simulator preț — calcul pur, fără modificare în catalog
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+          <input id="pr-sim-price" type="number" min="0" step="0.5" value="${s.basePrice}"
+            style="width:120px;padding:6px 10px;border:1px solid #fde68a;border-radius:6px;font-size:13px;" />
+          <button onclick="runPrSimulation('${serviceId}')" class="btn-primary" style="padding:6px 12px;font-size:12px;">Simulează</button>
+        </div>
+        <div id="pr-sim-result" style="font-size:12px;color:#6b4a2e;"></div>
+        <div style="font-size:11px;color:#b89275;margin-top:6px;font-style:italic;">Sistemul nu modifică automat prețul în catalog. Această simulare este doar informativă.</div>
+      </div>
+
+      <!-- Consumabile frecvente -->
+      <div style="margin-bottom:16px;">
+        <div style="font-size:12px;font-weight:700;color:#6b4a2e;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em;">Consumabile frecvente (co-ocurență 90z)</div>
+        ${topConsumables}
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:8px 10px;margin-top:8px;font-size:11px;color:#1d4ed8;line-height:1.5;">
+          <strong>Tip legătură: empirical_usage / co_occurrence</strong> — consumabilele sunt identificate
+          prin co-ocurență în aceeași consultație, nu printr-o structură BOM explicită.
+          Confidența indică frecvența relativă față de total prestări ale serviciului (90z).
+          Legătura structurală BOM (<code>procedure_template_items</code>) va fi disponibilă în Phase 2.
+        </div>
+      </div>
+
+      <!-- Istoric prețuri -->
+      <div>
+        <div style="font-size:12px;font-weight:700;color:#6b4a2e;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em;">Istoric prețuri facturate (lunar)</div>
+        ${phRows}
+      </div>
+    `;
+  } catch (e) {
+    content.innerHTML = `<div style="color:#dc2626;padding:20px;">${e.message}</div>`;
+  }
+}
+
+async function runPrSimulation(serviceId) {
+  const newPrice = parseFloat(document.getElementById('pr-sim-price')?.value);
+  if (isNaN(newPrice) || newPrice <= 0) return;
+  const resultEl = document.getElementById('pr-sim-result');
+  resultEl.textContent = 'Se calculează...';
+  try {
+    const sim = await _apiCall(`/reports/pricing/${serviceId}/simulate?newBasePrice=${newPrice}`);
+    const lines = [];
+    if (sim.newTheoreticalMargin != null)
+      lines.push(`Marjă teoretică nouă: <strong>${sim.newTheoreticalMargin.toFixed(1)}%</strong> (actual: ${sim.currentTheoreticalMargin?.toFixed(1) ?? '—'}%)`);
+    if (sim.newRealizedMargin != null)
+      lines.push(`Marjă realizată nouă: <strong>${sim.newRealizedMargin.toFixed(1)}%</strong>`);
+    if (sim.breakEvenPrice != null)
+      lines.push(`Break-even la marjă ${sim.minMarginPercent}%: <strong>${_fmtRON(sim.breakEvenPrice)}</strong>`);
+    lines.push(`Impact venit 90z: <strong style="color:${sim.revenueImpact90d >= 0 ? '#16a34a' : '#dc2626'}">${sim.revenueImpact90d >= 0 ? '+' : ''}${_fmtRON(sim.revenueImpact90d)}</strong>`);
+    if (!sim.isViable)
+      lines.push(`<span style="color:#dc2626;font-weight:600;">⚠ Prețul nou rămâne sub marja minimă (${sim.minMarginPercent}%)</span>`);
+    if (sim.warning)
+      lines.push(`<span style="color:#d97706;">${sim.warning}</span>`);
+    resultEl.innerHTML = lines.join('<br>');
+  } catch (e) {
+    resultEl.textContent = e.message;
+  }
+}
+
+async function prExportCsv() {
+  const serviceType = document.getElementById('pr-filter-type')?.value || '';
+  const flagFilter  = document.getElementById('pr-filter-flag')?.value  || '';
+  const params = new URLSearchParams({ format: 'csv', limit: '500' });
+  if (serviceType)                    params.set('serviceType', serviceType);
+  if (flagFilter === 'underpriced')   params.set('onlyUnderpriced', 'true');
+  if (flagFilter === 'noestimate')    params.set('onlyNoEstimate',  'true');
+  const url = `${API_BASE}/reports/pricing/underpriced?${params}`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `propuneri_preturi_${new Date().toISOString().slice(0,10)}.csv`;
+  // Attach auth header via fetch+blob since download attribute can't carry Authorization
+  try {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${_authToken}` } });
+    const blob = await res.blob();
+    a.href = URL.createObjectURL(blob);
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  } catch (e) { alert('Export eșuat: ' + e.message); }
+}
+
+function closePrDrawer() {
+  document.getElementById('pr-drawer').classList.remove('open');
+  document.getElementById('pr-drawer-overlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+// ============================================================
+// G-15 RECONCILIERE — task creation helpers
+// ============================================================
+
+async function recCreateTask(sourceEntityId, sourceType, consultationId, estimatedValue) {
+  const note = (document.getElementById('rec-task-note')?.value ?? '').trim();
+  const msg  = document.getElementById('rec-task-status-msg');
+  if (!note) {
+    if (msg) { msg.style.color = '#dc2626'; msg.textContent = 'Introduceți o descriere pentru task.'; }
+    return;
+  }
+  if (msg) msg.textContent = 'Se creează...';
+  const body = {
+    sourceEntityId,
+    sourceType,
+    consultationId: consultationId || null,
+    description:    note,
+    estimatedValue: estimatedValue || null,
+  };
+  try {
+    const r = await apiRequest('POST', '/reports/reconciliation/tasks', body);
+    if (r.ok) {
+      if (msg) { msg.style.color = '#16a34a'; msg.textContent = '✓ Task creat cu succes.'; }
+      const textarea = document.getElementById('rec-task-note');
+      if (textarea) textarea.value = '';
+    } else {
+      if (msg) { msg.style.color = '#dc2626'; msg.textContent = 'Eroare: ' + (r.error ?? 'necunoscută'); }
+    }
+  } catch (e) {
+    if (msg) { msg.style.color = '#dc2626'; msg.textContent = e.message; }
+  }
+}
+
+async function recTaskUpdateStatus(taskId, newStatus) {
+  try {
+    const r = await apiRequest('PATCH', `/reports/reconciliation/tasks/${taskId}/status`, { status: newStatus });
+    if (r.ok) {
+      // Refresh the drawer content by re-triggering the detail load
+      // Find the row that triggered this drawer and reopen it — simplest: reload whole tasks section
+      const statusLabel = { done: 'Rezolvat ✓', dismissed: 'Ignorat' };
+      const btn = document.querySelector(`button[onclick*="recTaskUpdateStatus('${taskId}'"]`);
+      if (btn) {
+        const row = btn.closest('div[style*="background:#f9f5ee"]');
+        if (row) {
+          const statusEl = row.querySelector('span[style*="font-weight:600"]');
+          if (statusEl) { statusEl.textContent = statusLabel[newStatus] ?? newStatus; statusEl.style.color = newStatus === 'done' ? '#16a34a' : '#9ca3af'; }
+          btn.parentElement?.querySelectorAll('button').forEach(b => b.remove());
+        }
+      }
+    }
+  } catch (_) {}
 }
 </script>
 </body>

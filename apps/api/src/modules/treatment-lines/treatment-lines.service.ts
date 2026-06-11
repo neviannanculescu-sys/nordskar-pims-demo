@@ -200,7 +200,8 @@ export class TreatmentLinesService {
             const rows = await tx.execute(
               sql`SELECT current_stock FROM inventory_items WHERE id = ${line.inventoryItemId} FOR UPDATE`,
             );
-            const currentStock = parseFloat((rows as any)[0]?.current_stock ?? '0');
+            // Drizzle node-postgres execute() returns { rows: [...] }, not a plain array
+            const currentStock = parseFloat(((rows as any).rows?.[0] ?? (rows as any)[0])?.current_stock ?? '0');
             const newStock     = currentStock - qty;
 
             if (newStock < 0) {

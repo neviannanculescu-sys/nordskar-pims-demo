@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { sql } from 'drizzle-orm';
 import { DRIZZLE_DB, DrizzleDB } from '../../database/database.module';
 import { ReconciliationService } from './reconciliation.service';
+import { DeadStockService }      from './dead-stock.service';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -62,6 +63,7 @@ export class AnomalyService {
   constructor(
     @Inject(DRIZZLE_DB) private readonly db: DrizzleDB,
     private readonly reconciliationService: ReconciliationService,
+    private readonly deadStockService:      DeadStockService,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -240,6 +242,7 @@ export class AnomalyService {
       this._detectNoShowSpike(),
       this._detectUnbilledServices(),
       this._detectStockRisk(),
+      this._detectDeadStock(),
       this._detectAuditRisk(),
     ]);
 
@@ -700,6 +703,41 @@ export class AnomalyService {
         rangeKey:          '7d',
       });
     }
+
+    return result;
+  }
+
+  // -------------------------------------------------------------------------
+  // Detector 8 — DeadStockAnomaly (consumă DeadStockService)
+  // -------------------------------------------------------------------------
+
+  private async _detectDeadStock(): Promise<DetectedAnomaly[]> {
+    const ds = await this.deadStockService.getSummaryForAnomalyEngine();
+    const today_str = new Date().toISOString().slice(0, 10);
+    const result: DetectedAnomaly[] = [];
+
+    if (ds.totalSkuAffected === 0) return result;
+
+    const severity: AnomalySeverity =
+      ds.criticalValueBlocked > 500 || ds.percentBlocked > 20 ? 'critical' :
+      ds.totalValueBlocked    > 200 || ds.percentBlocked > 10 ? 'warning'  :
+      'info';
+
+    result.push({
+      fingerprint:       `dead_stock:30d:${today_str}:global`,
+      type:              'dead_stock',
+      title:             `Stoc mort: ${ds.totalSkuAffected} SKU, ${ds.totalValueBlocked.toFixed(2)} RON blocați`,
+      description:       `${ds.totalSkuAffected} produse active fără mișcare în ultimele 90 de zile, cu valoare totală blocată de ${ds.totalValueBlocked.toFixed(2)} RON (${ds.percentBlocked.toFixed(1)}% din stocul total). Valoare critică (365+ zile): ${ds.criticalValueBlocked.toFixed(2)} RON.`,
+      sourceModule:      'inventory',
+      severity,
+      metricValue:       ds.totalValueBlocked,
+      baselineValue:     0,
+      threshold:         200,
+      relatedEntityType: null,
+      relatedEntityId:   null,
+      suggestedAction:   'Accesează raportul G-13 Stoc Mort pentru lista completă și recomandările per produs (reducere preț, retur furnizor, casare).',
+      rangeKey:          '30d',
+    });
 
     return result;
   }

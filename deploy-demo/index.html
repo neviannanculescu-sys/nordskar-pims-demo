@@ -152,6 +152,14 @@
     .rec-summary-card { background:white; border:1px solid #e8d5b7; border-radius:10px; padding:16px 20px; }
     .rec-summary-val { font-size:22px; font-weight:700; color:#2d1a0a; }
     .rec-summary-label { font-size:11px; font-weight:600; color:#9b7653; text-transform:uppercase; letter-spacing:.5px; }
+    /* G-13 Dead Stock */
+    .ds-card { background:white; border:1px solid #e8d5b7; border-radius:10px; padding:16px 20px; }
+    .ds-sev-critical { background:#fef2f2; color:#dc2626; }
+    .ds-sev-warning  { background:#fffbeb; color:#d97706; }
+    .ds-sev-info     { background:#eff6ff; color:#3b82f6; }
+    .ds-rec-badge { display:inline-block; padding:1px 7px; border-radius:10px; font-size:10px; font-weight:600; background:#f0fdf4; color:#166534; margin:1px; white-space:nowrap; }
+    .ds-drawer { position:fixed; right:0; top:0; bottom:0; width:480px; background:white; box-shadow:-4px 0 20px rgba(0,0,0,.15); z-index:200; display:none; overflow-y:auto; }
+    .ds-drawer.open { display:block; }
   </style>
 </head>
 <body style="margin:0;">
@@ -283,6 +291,10 @@
         <a onclick="nav('anomalies')" class="sidebar-link" id="nav-anomalies">
           <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
           Anomalii <span id="nav-anomalies-badge" style="display:none;background:#dc2626;color:white;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;">0</span>
+        </a>
+        <a onclick="nav('deadstock')" class="sidebar-link" id="nav-deadstock">
+          <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          Stoc Mort G-13
         </a>
       </nav>
 
@@ -1400,6 +1412,107 @@
         </div>
         <div id="an-drawer-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:199;" onclick="closeAnDrawer()"></div>
 
+        <!-- ================================================================ -->
+        <!-- PAGE: STOC MORT G-13                                              -->
+        <!-- ================================================================ -->
+        <div id="page-deadstock" class="page">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+            <div>
+              <h2 style="font-size:20px;font-weight:700;color:#2d1a0a;margin:0;">Stoc Mort G-13</h2>
+              <div style="font-size:12px;color:#b89275;margin-top:3px;">Produse fără mișcare · calculat la <span id="ds-last-run">—</span></div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <select id="ds-filter-range" onchange="loadDeadStock()" style="padding:6px 10px;border:1px solid #e8d5b7;border-radius:6px;font-size:13px;background:white;">
+                <option value="90">90+ zile</option>
+                <option value="180">180+ zile</option>
+                <option value="365">365+ zile</option>
+              </select>
+              <select id="ds-filter-category" onchange="loadDeadStock()" style="padding:6px 10px;border:1px solid #e8d5b7;border-radius:6px;font-size:13px;background:white;">
+                <option value="">Toate categoriile</option>
+                <option value="medication">Medicamente</option>
+                <option value="consumable">Consumabile</option>
+                <option value="food">Hrană</option>
+                <option value="product_for_sale">Produse vânzare</option>
+                <option value="equipment">Echipamente</option>
+                <option value="other">Altele</option>
+              </select>
+              <select id="ds-filter-severity" onchange="loadDeadStock()" style="padding:6px 10px;border:1px solid #e8d5b7;border-radius:6px;font-size:13px;background:white;">
+                <option value="">Toate severitățile</option>
+                <option value="critical">Critical</option>
+                <option value="warning">Warning</option>
+                <option value="info">Info</option>
+              </select>
+              <button onclick="dsExportCsv()" style="padding:7px 13px;background:white;color:#7c3a1e;border:1px solid #c4865a;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">↓ CSV</button>
+              <button onclick="runDeadStockScan()" id="ds-run-btn" style="padding:7px 14px;background:#7c3a1e;color:white;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">▶ Calculează</button>
+            </div>
+          </div>
+
+          <!-- Summary cards -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;">
+            <div class="ds-card">
+              <div style="font-size:11px;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">SKU afectate</div>
+              <div style="font-size:26px;font-weight:700;color:#2d1a0a;" id="ds-sku-count">—</div>
+            </div>
+            <div class="ds-card">
+              <div style="font-size:11px;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Valoare blocată</div>
+              <div style="font-size:22px;font-weight:700;color:#dc2626;" id="ds-value-blocked">—</div>
+              <div style="font-size:11px;color:#b89275;margin-top:2px;" id="ds-pct-blocked">—% din total stoc</div>
+            </div>
+            <div class="ds-card">
+              <div style="font-size:11px;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">90+ zile</div>
+              <div style="font-size:26px;font-weight:700;color:#3b82f6;" id="ds-90d">—</div>
+            </div>
+            <div class="ds-card">
+              <div style="font-size:11px;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">180+ zile</div>
+              <div style="font-size:26px;font-weight:700;color:#d97706;" id="ds-180d">—</div>
+            </div>
+            <div class="ds-card">
+              <div style="font-size:11px;color:#b89275;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">365+ zile</div>
+              <div style="font-size:26px;font-weight:700;color:#dc2626;" id="ds-365d">—</div>
+            </div>
+          </div>
+
+          <!-- Loading / Error / Empty -->
+          <div id="ds-loading" style="display:none;padding:40px;text-align:center;color:#b89275;font-size:14px;">Se calculează stocul mort...</div>
+          <div id="ds-error"   style="display:none;padding:16px;background:#fef2f2;border-radius:8px;color:#dc2626;font-size:13px;margin-bottom:16px;"></div>
+          <div id="ds-empty"   style="display:none;padding:40px;text-align:center;background:white;border-radius:10px;border:1px solid #e8d5b7;">
+            <div style="font-size:32px;margin-bottom:10px;">✅</div>
+            <div style="font-size:14px;font-weight:600;color:#2d1a0a;margin-bottom:4px;">Niciun produs cu stoc mort</div>
+            <div style="font-size:12px;color:#b89275;">Toate produsele au mișcare în intervalul selectat.</div>
+          </div>
+
+          <!-- Table -->
+          <div id="ds-table-wrap" style="background:white;border-radius:10px;border:1px solid #e8d5b7;overflow:hidden;overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:900px;">
+              <thead>
+                <tr style="background:#fdf8f2;border-bottom:1px solid #e8d5b7;">
+                  <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;">Produs</th>
+                  <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;">Categorie</th>
+                  <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;">Producător</th>
+                  <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;">Stoc</th>
+                  <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;">Cost mediu</th>
+                  <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;">Val. blocată</th>
+                  <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;">Ultima mișcare</th>
+                  <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;">Zile</th>
+                  <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;letter-spacing:.05em;">Recomandare</th>
+                </tr>
+              </thead>
+              <tbody id="ds-tbody"></tbody>
+            </table>
+          </div>
+          <div id="ds-pagination" style="padding:12px;text-align:center;font-size:12px;color:#b89275;"></div>
+        </div><!-- /page-deadstock -->
+
+        <!-- Dead stock detail drawer -->
+        <div id="ds-drawer" class="ds-drawer">
+          <div style="padding:16px 20px;background:#fef9f0;border-bottom:1px solid #e8d5b7;display:flex;align-items:center;justify-content:space-between;">
+            <div style="font-size:14px;font-weight:700;color:#2d1a0a;">Detalii produs — Stoc Mort</div>
+            <button onclick="closeDsDrawer()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#6b7280;">✕</button>
+          </div>
+          <div id="ds-drawer-content" style="padding:20px;"></div>
+        </div>
+        <div id="ds-drawer-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:199;" onclick="closeDsDrawer()"></div>
+
       </div><!-- /pages -->
     </main>
   </div>
@@ -2344,6 +2457,7 @@ function nav(page) {
     kpi:             ['Management KPI',    'Indicatori cheie de performanță'],
     reconciliation:  ['Reconciliere',      'Servicii prestate vs. facturate — G-15'],
     anomalies:       ['Anomalii G-05',     'Detectare automată anomalii operaționale'],
+    deadstock:       ['Stoc Mort G-13',    'Produse fără mișcare — valoare blocată și recomandări'],
   };
   document.getElementById('pageTitle').textContent = titles[page]?.[0] ?? page;
   if (titles[page]?.[1]) {
@@ -2357,6 +2471,7 @@ function nav(page) {
   if (page === 'kpi')           loadKpiDashboard();
   if (page === 'reconciliation') loadReconciliation();
   if (page === 'anomalies')     loadAnomalies();
+  if (page === 'deadstock')    loadDeadStock();
 }
 
 async function renderAll() {
@@ -5712,6 +5827,259 @@ function closeAnDrawer() {
 
 function _show(id) { const el = document.getElementById(id); if (el) el.style.display = ''; }
 function _hide(id) { const el = document.getElementById(id); if (el) el.style.display = 'none'; }
+
+// ==================== STOC MORT G-13 ====================
+
+async function loadDeadStock() {
+  const range    = document.getElementById('ds-filter-range').value    || '90';
+  const category = document.getElementById('ds-filter-category').value || '';
+  const severity = document.getElementById('ds-filter-severity').value || '';
+
+  _show('ds-loading');
+  _hide('ds-error'); _hide('ds-empty'); _hide('ds-table-wrap');
+  document.getElementById('ds-pagination').textContent = '';
+
+  try {
+    const qs = new URLSearchParams({ range, limit: '200' });
+    if (category) qs.set('category', category);
+    if (severity) qs.set('severity', severity);
+
+    const [sumRes, listRes] = await Promise.all([
+      _api(`/reports/inventory/dead-stock/summary?range=${range}`),
+      _api(`/reports/inventory/dead-stock?${qs}`),
+    ]);
+
+    const s = await sumRes.json();
+    const l = await listRes.json();
+
+    _setEl('ds-sku-count',    s.totalSkuAffected ?? 0);
+    _setEl('ds-value-blocked', _fmtRON(s.totalValueBlocked ?? 0));
+    _setEl('ds-pct-blocked',  `${(s.percentBlocked ?? 0).toFixed(1)}% din total stoc`);
+    _setEl('ds-90d',  s.by90days  ?? 0);
+    _setEl('ds-180d', s.by180days ?? 0);
+    _setEl('ds-365d', s.by365days ?? 0);
+    document.getElementById('ds-last-run').textContent = new Date().toLocaleTimeString('ro-RO');
+
+    _hide('ds-loading');
+    const rows = l.data ?? [];
+    if (!rows.length) { _show('ds-empty'); return; }
+
+    _show('ds-table-wrap');
+    _renderDsTable(rows, l.total ?? rows.length);
+  } catch(e) {
+    _hide('ds-loading');
+    _show('ds-error');
+    document.getElementById('ds-error').textContent = 'Eroare la încărcarea stocului mort: ' + e.message;
+  }
+}
+
+function _renderDsTable(rows, total) {
+  const catLabels = {
+    medication:'Medicamente', consumable:'Consumabile', food:'Hrană',
+    product_for_sale:'Produse vânzare', equipment:'Echipamente', other:'Altele',
+  };
+  const recLabels = {
+    price_reduction:'Reducere preț', return_to_supplier:'Retur furnizor',
+    disposal:'Casare', verify_inventory:'Verificare inventar',
+    bundle_promotion:'Pachet', protocol_inclusion:'Protocol',
+  };
+
+  document.getElementById('ds-tbody').innerHTML = rows.map(r => {
+    const sevClass = r.severity === 'critical' ? 'ds-sev-critical' : r.severity === 'warning' ? 'ds-sev-warning' : 'ds-sev-info';
+    const lastMov  = r.lastMovementAt ? new Date(r.lastMovementAt).toLocaleDateString('ro-RO') : '(niciodată)';
+    const recs     = (r.recommendations ?? []).slice(0, 2).map(rc =>
+      `<span class="ds-rec-badge">${recLabels[rc] ?? rc}</span>`).join('');
+    const cost     = r.averageCost != null ? _fmtRON(r.averageCost) : '—';
+    const val      = _fmtRON(r.estimatedValueBlocked);
+    const days     = r.daysSinceLastMovement ?? 0;
+
+    return `<tr style="border-bottom:1px solid #f3e8d8;cursor:pointer;"
+              onmouseenter="this.style.background='#fdf8f2'" onmouseleave="this.style.background=''"
+              onclick="openDsDrawer('${r.inventoryItemId}')">
+      <td style="padding:9px 12px;">
+        <div style="font-weight:600;color:#2d1a0a;font-size:12px;">${r.name}</div>
+        <div style="font-size:10px;color:#b89275;">${r.sku}</div>
+      </td>
+      <td style="padding:9px 12px;color:#6b4228;font-size:11px;">${catLabels[r.category] ?? r.category}</td>
+      <td style="padding:9px 12px;font-size:11px;color:#6b7280;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.manufacturer ?? '—'}</td>
+      <td style="padding:9px 12px;text-align:right;font-weight:600;color:#2d1a0a;">${r.currentStock} ${r.unitOfMeasure}</td>
+      <td style="padding:9px 12px;text-align:right;color:#6b7280;">${cost}</td>
+      <td style="padding:9px 12px;text-align:right;font-weight:700;color:#dc2626;">${val}</td>
+      <td style="padding:9px 12px;font-size:11px;color:#6b7280;">${lastMov}</td>
+      <td style="padding:9px 12px;text-align:right;">
+        <span style="font-weight:700;font-size:13px;" class="${sevClass.replace('ds-','an-sev-')}">${days}z</span>
+      </td>
+      <td style="padding:9px 12px;">${recs}</td>
+    </tr>`;
+  }).join('');
+
+  if (total > rows.length) {
+    document.getElementById('ds-pagination').textContent =
+      `Afișate ${rows.length} din ${total} produse. Folosește filtrele pentru a restrânge lista.`;
+  }
+}
+
+async function runDeadStockScan() {
+  const btn = document.getElementById('ds-run-btn');
+  btn.disabled = true; btn.textContent = '⏳ Calculează...';
+  try {
+    const res  = await _api('/reports/inventory/dead-stock/run', { method: 'POST' });
+    const data = await res.json();
+    btn.textContent = `✓ ${data.deadStockFound} produse`;
+    setTimeout(() => { btn.textContent = '▶ Calculează'; btn.disabled = false; }, 3000);
+    await loadDeadStock();
+  } catch(e) {
+    btn.textContent = '✕ Eroare'; btn.disabled = false;
+  }
+}
+
+async function dsExportCsv() {
+  const range    = document.getElementById('ds-filter-range').value    || '90';
+  const category = document.getElementById('ds-filter-category').value || '';
+  const severity = document.getElementById('ds-filter-severity').value || '';
+  const qs = new URLSearchParams({ range, format: 'csv', limit: '500' });
+  if (category) qs.set('category', category);
+  if (severity) qs.set('severity', severity);
+  const url = `${API_BASE}/reports/inventory/dead-stock?${qs}`;
+  const link = document.createElement('a');
+  link.href = url; link.download = `stoc_mort_${range}z.csv`;
+  // inject auth header via fetch + blob
+  try {
+    const res = await _api(`/reports/inventory/dead-stock?${qs}`);
+    const text = await res.text();
+    const blob = new Blob(['﻿' + text], { type: 'text/csv;charset=utf-8;' });
+    link.href = URL.createObjectURL(blob);
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  } catch(e) { alert('Eroare export CSV: ' + e.message); }
+}
+
+async function openDsDrawer(inventoryItemId) {
+  document.getElementById('ds-drawer').classList.add('open');
+  document.getElementById('ds-drawer-overlay').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+
+  const content = document.getElementById('ds-drawer-content');
+  content.innerHTML = '<div style="color:#b89275;font-size:13px;">Se încarcă...</div>';
+
+  try {
+    const res  = await _api(`/reports/inventory/dead-stock/${inventoryItemId}`);
+    const data = await res.json();
+    const it   = data.item;
+    const movs = data.lastMovements ?? [];
+    const hist = data.stockHistory  ?? [];
+
+    const sevClass = it.severity === 'critical' ? 'an-sev-critical' : it.severity === 'warning' ? 'an-sev-warning' : 'an-sev-info';
+    const recLabels = {
+      price_reduction:'Reducere preț', return_to_supplier:'Retur furnizor',
+      disposal:'Casare', verify_inventory:'Verificare inventar',
+      bundle_promotion:'Promovare în pachet', protocol_inclusion:'Includere în protocol',
+    };
+    const movTypeLabels = {
+      purchase_receipt:'Recepție', consultation_use:'Consum consultație',
+      hospitalization_use:'Consum hospitalizare', direct_sale:'Vânzare directă',
+      adjustment_positive:'Ajustare +', adjustment_negative:'Ajustare −',
+      return_to_supplier:'Retur furnizor', expired_disposal:'Casare expirare',
+      theft_loss:'Pierdere/furt',
+    };
+
+    const recsHtml = (it.recommendations ?? []).map(rc =>
+      `<span class="ds-rec-badge" style="font-size:12px;padding:3px 10px;">${recLabels[rc] ?? rc}</span>`
+    ).join(' ');
+
+    const metricsHtml = `
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;">
+        <div style="padding:10px;background:#fdf8f2;border-radius:8px;">
+          <div style="font-size:10px;color:#b89275;margin-bottom:3px;">STOC CURENT</div>
+          <div style="font-size:18px;font-weight:700;color:#2d1a0a;">${it.currentStock} ${it.unitOfMeasure}</div>
+        </div>
+        <div style="padding:10px;background:#fdf8f2;border-radius:8px;">
+          <div style="font-size:10px;color:#b89275;margin-bottom:3px;">COST MEDIU</div>
+          <div style="font-size:18px;font-weight:700;color:#2d1a0a;">${it.averageCost != null ? _fmtRON(it.averageCost) : '—'}</div>
+        </div>
+        <div style="padding:10px;background:#fef2f2;border-radius:8px;">
+          <div style="font-size:10px;color:#b89275;margin-bottom:3px;">VALOARE BLOCATĂ</div>
+          <div style="font-size:18px;font-weight:700;color:#dc2626;">${_fmtRON(it.estimatedValueBlocked)}</div>
+        </div>
+      </div>`;
+
+    const whyHtml = `
+      <div style="padding:12px;background:#fffbeb;border-left:3px solid #f59e0b;border-radius:4px;margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:700;color:#92400e;margin-bottom:4px;">DE CE ESTE CLASIFICAT STOC MORT</div>
+        <div style="font-size:13px;color:#78350f;line-height:1.5;">
+          Produsul are <strong>${it.daysSinceLastMovement} zile</strong> fără consum înregistrat
+          ${it.lastMovementAt ? `(ultima mișcare: ${new Date(it.lastMovementAt).toLocaleDateString('ro-RO')}, tip: ${movTypeLabels[it.lastMovementType] ?? it.lastMovementType})` : '(nicio mișcare înregistrată)'}.
+          ${it.nearestExpiryDate ? ` Data expirare lot activ: <strong>${it.nearestExpiryDate}</strong>.` : ''}
+        </div>
+      </div>`;
+
+    const lotsHtml = it.nearestExpiryDate || it.lotNumber ? `
+      <div style="margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;margin-bottom:8px;">Lot / Expirare</div>
+        <div style="padding:10px;background:#fdf8f2;border-radius:8px;font-size:13px;">
+          ${it.lotNumber ? `<div>Lot: <strong>${it.lotNumber}</strong></div>` : ''}
+          ${it.nearestExpiryDate ? `<div>Expiră: <strong>${it.nearestExpiryDate}</strong></div>` : ''}
+        </div>
+      </div>` : '';
+
+    const movsHtml = movs.length ? `
+      <div style="margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;margin-bottom:8px;">Ultimele mișcări</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead><tr style="background:#fdf8f2;">
+            <th style="padding:6px 8px;text-align:left;color:#b89275;">Dată</th>
+            <th style="padding:6px 8px;text-align:left;color:#b89275;">Tip</th>
+            <th style="padding:6px 8px;text-align:right;color:#b89275;">Cantitate</th>
+            <th style="padding:6px 8px;text-align:right;color:#b89275;">Stoc după</th>
+          </tr></thead>
+          <tbody>${movs.map(m => `<tr style="border-bottom:1px solid #f3e8d8;">
+            <td style="padding:6px 8px;color:#6b7280;">${m.performedAt ? new Date(m.performedAt).toLocaleDateString('ro-RO') : '—'}</td>
+            <td style="padding:6px 8px;">${movTypeLabels[m.movementType] ?? m.movementType}</td>
+            <td style="padding:6px 8px;text-align:right;font-weight:600;color:${parseFloat(m.quantity) < 0 ? '#dc2626' : '#16a34a'};">${parseFloat(m.quantity) > 0 ? '+' : ''}${m.quantity}</td>
+            <td style="padding:6px 8px;text-align:right;color:#6b7280;">${m.stockAfter ?? '—'}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>` : '';
+
+    // Estimated rotation based on last 12 months history
+    const totalConsumed = hist.reduce((s, h) => s + parseFloat(h.consumed ?? '0'), 0);
+    const avgMonthly    = hist.length ? (totalConsumed / hist.length).toFixed(2) : null;
+    const rotationHtml  = avgMonthly !== null ? `
+      <div style="padding:10px;background:#eff6ff;border-radius:8px;margin-bottom:16px;font-size:13px;">
+        <div style="font-size:11px;font-weight:700;color:#1e40af;margin-bottom:4px;">ROTAȚIE ESTIMATĂ</div>
+        Consum mediu lunar (12 luni): <strong>${avgMonthly} ${it.unitOfMeasure}</strong>.
+        ${parseFloat(avgMonthly) > 0
+          ? ` Stocul curent acoperă ~<strong>${Math.ceil(it.currentStock / parseFloat(avgMonthly))} luni</strong>.`
+          : ' Consum zero în ultimele 12 luni.'}
+      </div>` : '';
+
+    content.innerHTML = `
+      <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <span class="an-severity-badge ${sevClass}" style="font-size:12px;">${it.severity.toUpperCase()}</span>
+        <span class="an-module-badge" style="font-size:12px;">${it.category}</span>
+        ${it.manufacturer ? `<span style="font-size:11px;color:#6b7280;">${it.manufacturer}</span>` : ''}
+      </div>
+      <div style="font-size:16px;font-weight:700;color:#2d1a0a;margin-bottom:3px;">${it.name}</div>
+      <div style="font-size:11px;color:#b89275;margin-bottom:14px;">SKU: ${it.sku} &nbsp;·&nbsp; ${it.unitOfMeasure}</div>
+      ${metricsHtml}
+      ${whyHtml}
+      ${lotsHtml}
+      ${rotationHtml}
+      <div style="margin-bottom:14px;">
+        <div style="font-size:11px;font-weight:700;color:#b89275;text-transform:uppercase;margin-bottom:8px;">Recomandări</div>
+        ${recsHtml || '<span style="color:#b89275;font-size:12px;">—</span>'}
+      </div>
+      ${movsHtml}
+    `;
+  } catch(e) {
+    content.innerHTML = `<div style="color:#dc2626;font-size:13px;">Eroare: ${e.message}</div>`;
+  }
+}
+
+function closeDsDrawer() {
+  document.getElementById('ds-drawer').classList.remove('open');
+  document.getElementById('ds-drawer-overlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
 </script>
 </body>
 </html>

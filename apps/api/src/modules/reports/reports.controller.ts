@@ -13,6 +13,7 @@ import { AccountingExportService } from './accounting-export.service';
 import { KpiService }              from './kpi.service';
 import { ReconciliationService, UnbilledType } from './reconciliation.service';
 import { AnomalyService }          from './anomaly.service';
+import { DeadStockService }        from './dead-stock.service';
 import { ReportFiltersDto, AccountingExportDto, ExportFormat } from './dto/report-filters.dto';
 
 // Rapoartele financiare sunt vizibile și pentru ACCOUNTANT
@@ -28,6 +29,7 @@ export class ReportsController {
     private readonly kpiService:              KpiService,
     private readonly reconciliationService:   ReconciliationService,
     private readonly anomalyService:          AnomalyService,
+    private readonly deadStockService:        DeadStockService,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -421,5 +423,67 @@ export class ReportsController {
     @Request() req: any,
   ) {
     return this.anomalyService.resolve(id, req.user.id);
+  }
+
+  // -------------------------------------------------------------------------
+  // G-13 Dead Stock — Sesiunea 10
+  // -------------------------------------------------------------------------
+
+  @Get('inventory/dead-stock/summary')
+  @Roles(...REPORT_ROLES)
+  deadStockSummary(@Query('range') range?: string) {
+    return this.deadStockService.getSummary(range ? parseInt(range, 10) : 90);
+  }
+
+  @Get('inventory/dead-stock/run')
+  @Roles(...REPORT_ROLES)
+  deadStockRunGet() {
+    return this.deadStockService.run();
+  }
+
+  @Post('inventory/dead-stock/run')
+  @Roles(...REPORT_ROLES)
+  deadStockRun() {
+    return this.deadStockService.run();
+  }
+
+  @Get('inventory/dead-stock/:inventoryItemId')
+  @Roles(...REPORT_ROLES)
+  deadStockDetail(@Param('inventoryItemId', ParseUUIDPipe) inventoryItemId: string) {
+    return this.deadStockService.getDetail(inventoryItemId);
+  }
+
+  @Get('inventory/dead-stock')
+  @Roles(...REPORT_ROLES)
+  deadStockList(
+    @Query('range')        range?:        string,
+    @Query('category')     category?:     string,
+    @Query('manufacturer') manufacturer?: string,
+    @Query('severity')     severity?:     string,
+    @Query('limit')        limit?:        string,
+    @Query('offset')       offset?:       string,
+    @Query('format')       format?:       string,
+    @Res({ passthrough: true }) res?: Response,
+  ) {
+    if (format === 'csv') {
+      return this.deadStockService
+        .getDeadStock({ range: range ? parseInt(range, 10) : 90, category, manufacturer, severity, limit: 500 })
+        .then(({ data }) => {
+          const csv = this.deadStockService.exportToCsv(data);
+          res!.set({
+            'Content-Type':        'text/csv; charset=utf-8',
+            'Content-Disposition': `attachment; filename="stoc_mort_${new Date().toISOString().slice(0,10)}.csv"`,
+          });
+          return csv;
+        });
+    }
+    return this.deadStockService.getDeadStock({
+      range:        range        ? parseInt(range, 10)  : 90,
+      category,
+      manufacturer,
+      severity,
+      limit:        limit        ? parseInt(limit,  10) : undefined,
+      offset:       offset       ? parseInt(offset, 10) : undefined,
+    });
   }
 }

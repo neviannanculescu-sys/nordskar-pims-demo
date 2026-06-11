@@ -452,13 +452,15 @@ export class DeadStockService {
   ): { recs: DeadStockRecommendation[]; note: string } {
     const recs: DeadStockRecommendation[] = [];
 
-    // Check if expiry is near (within 90 days)
-    const hasNearExpiry = expiryDate != null &&
-      (new Date(expiryDate).getTime() - Date.now()) < 90 * 86400 * 1000;
+    // Expiry within 90 days — check separately from age thresholds
+    const msToExpiry  = expiryDate != null ? new Date(expiryDate).getTime() - Date.now() : Infinity;
+    const hasNearExpiry = msToExpiry < 90  * 86400 * 1000;   // < 90 days
+    const hasUrgentExpiry = msToExpiry < 30 * 86400 * 1000;  // < 30 days
 
     if (hasNearExpiry) {
       recs.push('verify_inventory');
-      if (days >= 180) recs.push('disposal');
+      // Disposal if: expiry very soon (<30d), OR value large + fără consum 90+z, OR age≥180
+      if (hasUrgentExpiry || value >= 200 || days >= 180) recs.push('disposal');
     }
 
     if (days >= 365) {
